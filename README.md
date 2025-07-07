@@ -1,4 +1,4 @@
-# Starter Kit
+# Invoice Flow
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)  
 A full-stack boilerplate powered by Better Auth, Drizzle ORM, PostgreSQL & NeonDB, with social auth (Google & GitHub), Shadcn UI components, all running on Bun.
