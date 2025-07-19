@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from 'react';
+
 import { Plus, Package, Search, Edit, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -112,10 +112,10 @@ export default function ItemsPage() {
     <div className="container mx-auto p-4 sm:p-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 sm:mb-8 gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground dark:text-white">
             Items Catalog
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
+          <p className="text-muted-foreground dark:text-muted-foreground mt-1">
             Manage your items and product catalog
           </p>
         </div>
@@ -366,9 +366,9 @@ export default function ItemsPage() {
         <CardContent>
           {currentFilteredItems.length === 0 ? (
             <div className="text-center py-8">
-              <Package className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">No items found</h3>
-              <p className="mt-1 text-sm text-gray-500">
+              <Package className="mx-auto h-12 w-12 text-muted-foreground" />
+              <h3 className="mt-2 text-sm font-semibold text-foreground dark:text-white">No items found</h3>
+              <p className="mt-1 text-sm text-muted-foreground">
                 {items.length === 0 ? 'Get started by adding your first item.' : 'Try adjusting your search or filters.'}
               </p>
             </div>

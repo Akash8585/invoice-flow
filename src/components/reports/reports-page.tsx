@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { toast } from 'sonner';
 import { 
   BarChart, 
   Bar, 
@@ -27,10 +28,7 @@ import {
   DollarSign, 
   Calendar,
   Download,
-  Filter,
-  FileText,
-  Users,
-  Package
+  FileText
 } from "lucide-react";
 
 interface ReportsData {
@@ -44,10 +42,6 @@ export default function ReportsPage() {
   const [reportsData, setReportsData] = useState<ReportsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [dateRange, setDateRange] = useState("last12months");
-
-  useEffect(() => {
-    fetchReportsData();
-  }, [dateRange]);
 
   const fetchReportsData = async () => {
     try {
@@ -101,6 +95,10 @@ export default function ReportsPage() {
     }
   };
 
+  useEffect(() => {
+    fetchReportsData();
+  }, [dateRange, fetchReportsData]);
+
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -110,7 +108,7 @@ export default function ReportsPage() {
 
   const exportReport = (format: 'pdf' | 'csv') => {
     // In a real app, this would generate and download the report
-    alert(`Exporting report as ${format.toUpperCase()}...`);
+    toast.info(`Exporting report as ${format.toUpperCase()}...`);
   };
 
   if (loading) {
@@ -127,11 +125,11 @@ export default function ReportsPage() {
     return (
       <div className="container mx-auto p-4 sm:p-6">
         <div className="text-center py-8">
-          <BarChart3 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+          <BarChart3 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-foreground dark:text-white mb-2">
             No data available
           </h3>
-          <p className="text-gray-500">
+          <p className="text-muted-foreground">
             Create some invoices and clients to see reports.
           </p>
         </div>
@@ -144,10 +142,10 @@ export default function ReportsPage() {
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-6 sm:mb-8 gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground dark:text-white">
             Reports & Analytics
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
+          <p className="text-muted-foreground dark:text-muted-foreground mt-1">
             Analyze your business performance and trends
           </p>
         </div>
@@ -183,8 +181,8 @@ export default function ReportsPage() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Total Revenue</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                <p className="text-sm text-muted-foreground dark:text-muted-foreground">Total Revenue</p>
+                <p className="text-2xl font-bold text-foreground dark:text-white">
                   {formatCurrency(reportsData.salesOverview.reduce((sum, item) => sum + item.revenue, 0))}
                 </p>
               </div>
@@ -197,8 +195,8 @@ export default function ReportsPage() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Total Expenses</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                <p className="text-sm text-muted-foreground dark:text-muted-foreground">Total Expenses</p>
+                <p className="text-2xl font-bold text-foreground dark:text-white">
                   {formatCurrency(reportsData.salesOverview.reduce((sum, item) => sum + item.expenses, 0))}
                 </p>
               </div>
@@ -211,8 +209,8 @@ export default function ReportsPage() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Net Profit</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                <p className="text-sm text-muted-foreground dark:text-muted-foreground">Net Profit</p>
+                <p className="text-2xl font-bold text-foreground dark:text-white">
                   {formatCurrency(reportsData.salesOverview.reduce((sum, item) => sum + item.profit, 0))}
                 </p>
               </div>
@@ -225,8 +223,8 @@ export default function ReportsPage() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Avg Invoice</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                <p className="text-sm text-muted-foreground dark:text-muted-foreground">Avg Invoice</p>
+                <p className="text-2xl font-bold text-foreground dark:text-white">
                   {formatCurrency(reportsData.monthlyTrends[reportsData.monthlyTrends.length - 1]?.avgInvoice || 0)}
                 </p>
               </div>
@@ -322,7 +320,7 @@ export default function ReportsPage() {
                       </div>
                       <div className="text-right">
                         <div className="font-bold">{category.value}%</div>
-                        <div className="text-sm text-gray-500">
+                        <div className="text-sm text-muted-foreground">
                           {formatCurrency((category.value / 100) * 50000)}
                         </div>
                       </div>

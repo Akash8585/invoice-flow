@@ -14,7 +14,11 @@ import {
   bills,
   billItems,
   billExtraCharges,
-  payments 
+  payments,
+  purchaseBills,
+  purchaseBillItems,
+  purchaseBillExtraCharges,
+  expenses
 } from './schema';
 
 if (!process.env.DATABASE_URL) {
@@ -36,7 +40,11 @@ const db = drizzle(process.env.DATABASE_URL, {
     bills,
     billItems,
     billExtraCharges,
-    payments 
+    payments,
+    purchaseBills,
+    purchaseBillItems,
+    purchaseBillExtraCharges,
+    expenses
   }
 });
 

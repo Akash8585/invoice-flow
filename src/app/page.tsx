@@ -19,14 +19,14 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       {/* Header */}
-      <header className="border-b bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm sticky top-0 z-50">
+      <header className="border-b bg-background/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
                 <FileText className="h-4 w-4 text-white" />
               </div>
-              <span className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">
+              <span className="text-lg sm:text-xl font-bold text-foreground dark:text-white">
                 InvoiceFlow
               </span>
             </div>
@@ -48,11 +48,11 @@ export default function LandingPage() {
           <Badge className="mb-4 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300">
             ✨ Modern Invoice Management
           </Badge>
-          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 dark:text-white mb-6">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-foreground dark:text-white mb-6">
             Streamline Your
             <span className="text-blue-600 block">Business Invoicing</span>
           </h1>
-          <p className="text-lg sm:text-xl text-gray-600 dark:text-gray-300 mb-8 max-w-3xl mx-auto px-4">
+          <p className="text-lg sm:text-xl text-muted-foreground dark:text-gray-300 mb-8 max-w-3xl mx-auto px-4">
             Create professional invoices, manage clients, track expenses, and analyze your business 
             performance with our comprehensive invoice management platform.
           </p>
@@ -69,20 +69,20 @@ export default function LandingPage() {
               </Button>
             </Link>
           </div>
-          <p className="text-xs sm:text-sm text-gray-500 mt-4">
+          <p className="text-xs sm:text-sm text-muted-foreground mt-4">
             No credit card required • Free 30-day trial
           </p>
         </div>
       </section>
 
       {/* Features Grid */}
-      <section className="py-20 px-4 bg-white dark:bg-gray-800">
+      <section className="py-20 px-4 bg-card">
         <div className="container mx-auto">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
+            <h2 className="text-3xl md:text-4xl font-bold text-foreground dark:text-white mb-4">
               Everything You Need to Manage Your Business
             </h2>
-            <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
+            <p className="text-lg text-muted-foreground dark:text-gray-300 max-w-2xl mx-auto">
               From invoice creation to financial reporting, InvoiceFlow provides all the tools 
               you need to run your business efficiently.
             </p>
@@ -175,7 +175,7 @@ export default function LandingPage() {
         <div className="container mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div>
-              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-6">
+              <h2 className="text-3xl md:text-4xl font-bold text-foreground dark:text-white mb-6">
                 Why Choose InvoiceFlow?
               </h2>
               <div className="space-y-6">
@@ -184,8 +184,8 @@ export default function LandingPage() {
                     <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Save Time</h3>
-                    <p className="text-gray-600 dark:text-gray-300">
+                    <h3 className="font-semibold text-foreground dark:text-white mb-2">Save Time</h3>
+                    <p className="text-muted-foreground dark:text-gray-300">
                       Automate your invoicing process and reduce manual work by up to 80%.
                     </p>
                   </div>
@@ -196,8 +196,8 @@ export default function LandingPage() {
                     <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Get Paid Faster</h3>
-                    <p className="text-gray-600 dark:text-gray-300">
+                    <h3 className="font-semibold text-foreground dark:text-white mb-2">Get Paid Faster</h3>
+                    <p className="text-muted-foreground dark:text-gray-300">
                       Professional invoices and automated reminders help you get paid 40% faster.
                     </p>
                   </div>
@@ -208,8 +208,8 @@ export default function LandingPage() {
                     <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Stay Organized</h3>
-                    <p className="text-gray-600 dark:text-gray-300">
+                    <h3 className="font-semibold text-foreground dark:text-white mb-2">Stay Organized</h3>
+                    <p className="text-muted-foreground dark:text-gray-300">
                       Keep all your business data organized and accessible from anywhere.
                     </p>
                   </div>
@@ -220,8 +220,8 @@ export default function LandingPage() {
                     <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Make Better Decisions</h3>
-                    <p className="text-gray-600 dark:text-gray-300">
+                    <h3 className="font-semibold text-foreground dark:text-white mb-2">Make Better Decisions</h3>
+                    <p className="text-muted-foreground dark:text-gray-300">
                       Use detailed analytics and reports to make informed business decisions.
                     </p>
                   </div>
@@ -245,19 +245,19 @@ export default function LandingPage() {
                     <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
                       1
                     </div>
-                    <span className="text-gray-700 dark:text-gray-300">Sign up for your free account</span>
+                    <span className="text-foreground dark:text-gray-300">Sign up for your free account</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
                       2
                     </div>
-                    <span className="text-gray-700 dark:text-gray-300">Add your clients and services</span>
+                    <span className="text-foreground dark:text-gray-300">Add your clients and services</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
                       3
                     </div>
-                    <span className="text-gray-700 dark:text-gray-300">Create and send your first invoice</span>
+                    <span className="text-foreground dark:text-gray-300">Create and send your first invoice</span>
                   </div>
                 </CardContent>
               </Card>
@@ -295,7 +295,7 @@ export default function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="py-12 px-4 bg-gray-900 dark:bg-black">
+      <footer className="py-12 px-4 bg-muted">
         <div className="container mx-auto">
           <div className="flex flex-col md:flex-row items-center justify-between">
             <div className="flex items-center gap-2 mb-4 md:mb-0">
@@ -306,7 +306,7 @@ export default function LandingPage() {
                 InvoiceFlow
               </span>
             </div>
-            <div className="flex items-center gap-6 text-gray-400">
+            <div className="flex items-center gap-6 text-muted-foreground">
               <Link href="/login" className="hover:text-white transition-colors">
                 Sign In
               </Link>
@@ -315,7 +315,7 @@ export default function LandingPage() {
               </Link>
             </div>
           </div>
-          <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
+          <div className="border-t border-border mt-8 pt-8 text-center text-muted-foreground">
             <p>&copy; 2024 InvoiceFlow. All rights reserved.</p>
           </div>
         </div>

@@ -77,6 +77,8 @@ export const inventorySchema = z.object({
   supplierId: z.string().optional().or(z.literal('')),
   batchNumber: z.string().optional(),
   quantity: z.number().min(0, 'Quantity must be non-negative'),
+  costPrice: z.number().min(0, 'Cost price must be positive'),
+  sellingPrice: z.number().min(0, 'Selling price must be positive'),
   purchaseDate: z.string().min(1, 'Purchase date is required'),
   expiryDate: z.string().optional(),
   location: z.string().optional(),
@@ -91,6 +93,8 @@ export const inventoryResponseSchema = z.object({
   batchNumber: z.string().nullable(),
   quantity: z.string(),
   availableQuantity: z.string(),
+  costPrice: z.string(),
+  sellingPrice: z.string(),
   purchaseDate: z.string(),
   expiryDate: z.string().nullable(),
   location: z.string().nullable(),
@@ -199,6 +203,111 @@ export type ExtraChargeForm = z.infer<typeof extraChargeSchema>;
 export type BillForm = z.infer<typeof billSchema>;
 export type ExtendedBillForm = z.infer<typeof extendedBillSchema>;
 export type BillResponse = z.infer<typeof billResponseSchema>;
+
+// Purchase Bill schemas
+export const purchaseBillItemSchema = z.object({
+  itemId: z.string().min(1, 'Item is required'),
+  quantity: z.number().min(0.01, 'Quantity must be positive'),
+  costPrice: z.number().min(0, 'Cost price must be positive'),
+  batchNumber: z.string().optional(),
+  expiryDate: z.string().optional(),
+});
+
+export const purchaseBillExtraChargeSchema = z.object({
+  name: z.string().min(1, 'Charge name is required'),
+  amount: z.number().min(0, 'Amount must be positive'),
+});
+
+export const purchaseBillSchema = z.object({
+  supplierId: z.string(),
+  billNumber: z.string().min(1, 'Bill number is required'),
+  billDate: z.string().min(1, 'Bill date is required'),
+  items: z.array(purchaseBillItemSchema).min(1, 'At least one item is required'),
+  taxRate: z.preprocess(
+    (val) => val === null || val === undefined || val === '' ? 0 : val,
+    z.number().min(0).max(100, 'Tax rate must be between 0 and 100')
+  ),
+  extraCharges: z.array(purchaseBillExtraChargeSchema),
+  notes: z.string().optional(),
+  location: z.string().optional(),
+  status: z.enum(['pending', 'received', 'cancelled']),
+});
+
+export const purchaseBillResponseSchema = z.object({
+  id: z.string(),
+  userId: z.string(),
+  supplierId: z.string().nullable(),
+  billNumber: z.string(),
+  billDate: z.string(),
+  subtotal: z.string(),
+  taxRate: z.string(),
+  tax: z.string(),
+  extraChargesTotal: z.string(),
+  total: z.string(),
+  status: z.enum(['pending', 'received', 'cancelled']),
+  notes: z.string().nullable(),
+  location: z.string().nullable(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  supplier: z.object({
+    id: z.string().nullable(),
+    name: z.string().nullable(),
+    contactPerson: z.string().nullable(),
+    email: z.string().nullable(),
+    phone: z.string().nullable(),
+  }).nullable(),
+  items: z.array(z.object({
+    id: z.string(),
+    itemId: z.string(),
+    quantity: z.string(),
+    costPrice: z.string(),
+    total: z.string(),
+    batchNumber: z.string().nullable(),
+    expiryDate: z.string().nullable(),
+    item: z.object({
+      id: z.string(),
+      name: z.string(),
+      sku: z.string(),
+      unit: z.string().nullable(),
+    }),
+  })),
+  extraCharges: z.array(z.object({
+    id: z.string(),
+    name: z.string(),
+    amount: z.string(),
+  })),
+});
+
+export type PurchaseBillItemForm = z.infer<typeof purchaseBillItemSchema>;
+export type PurchaseBillExtraChargeForm = z.infer<typeof purchaseBillExtraChargeSchema>;
+export type PurchaseBillForm = z.infer<typeof purchaseBillSchema>;
+export type PurchaseBillResponse = z.infer<typeof purchaseBillResponseSchema>;
+
+// Expense schemas
+export const expenseSchema = z.object({
+  category: z.string().min(1, 'Category is required'),
+  description: z.string().min(1, 'Description is required'),
+  amount: z.number().min(0.01, 'Amount must be positive'),
+  expenseDate: z.string().min(1, 'Expense date is required'),
+  notes: z.string().optional(),
+  purchaseBillId: z.string().optional(),
+});
+
+export const expenseResponseSchema = z.object({
+  id: z.string(),
+  userId: z.string(),
+  purchaseBillId: z.string().nullable(),
+  category: z.string(),
+  description: z.string(),
+  amount: z.string(),
+  expenseDate: z.string(),
+  notes: z.string().nullable(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
+export type ExpenseForm = z.infer<typeof expenseSchema>;
+export type ExpenseResponse = z.infer<typeof expenseResponseSchema>;
 
 // Categories
 export const categories = [

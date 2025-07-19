@@ -52,9 +52,23 @@ export default function ClientsPage() {
     fetchClients();
   }, []);
 
+  const filterClients = () => {
+    let filtered = clients;
+
+    if (searchTerm) {
+      filtered = filtered.filter(client =>
+        client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        client.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (client.phone && client.phone.toLowerCase().includes(searchTerm.toLowerCase()))
+      );
+    }
+
+    setFilteredClients(filtered);
+  };
+
   useEffect(() => {
     filterClients();
-  }, [clients, searchTerm]);
+  }, [clients, searchTerm, filterClients]);
 
   const fetchClients = async () => {
     try {
@@ -87,20 +101,6 @@ export default function ClientsPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const filterClients = () => {
-    let filtered = clients;
-
-    if (searchTerm) {
-      filtered = filtered.filter(client =>
-        client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        client.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (client.phone && client.phone.toLowerCase().includes(searchTerm.toLowerCase()))
-      );
-    }
-
-    setFilteredClients(filtered);
   };
 
   const onSubmit = async (data: ClientFormData) => {
@@ -181,10 +181,10 @@ export default function ClientsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 sm:mb-8 gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground dark:text-white">
             Clients
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
+          <p className="text-muted-foreground dark:text-muted-foreground mt-1">
             Manage your client information and contacts
           </p>
         </div>
@@ -271,7 +271,7 @@ export default function ClientsPage() {
       <Card className="mb-6">
         <CardContent className="p-6">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
             <Input
               placeholder="Search clients..."
               value={searchTerm}
@@ -314,12 +314,12 @@ export default function ClientsPage() {
                   <TableCell>
                     <div className="space-y-1">
                       <div className="flex items-center gap-2 text-sm">
-                        <Mail className="h-3 w-3 text-gray-400" />
+                        <Mail className="h-3 w-3 text-muted-foreground" />
                         {client.email}
                       </div>
                       {client.phone && (
-                        <div className="flex items-center gap-2 text-sm text-gray-500">
-                          <Phone className="h-3 w-3 text-gray-400" />
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Phone className="h-3 w-3 text-muted-foreground" />
                           {client.phone}
                         </div>
                       )}
@@ -328,11 +328,11 @@ export default function ClientsPage() {
                   <TableCell>
                     {client.address ? (
                       <div className="flex items-start gap-2 text-sm">
-                        <MapPin className="h-3 w-3 text-gray-400 mt-0.5" />
-                        <span className="text-gray-600">{client.address}</span>
+                        <MapPin className="h-3 w-3 text-muted-foreground mt-0.5" />
+                        <span className="text-muted-foreground">{client.address}</span>
                       </div>
                     ) : (
-                      <span className="text-gray-400">No address</span>
+                      <span className="text-muted-foreground">No address</span>
                     )}
                   </TableCell>
                   <TableCell>{client.createdAt}</TableCell>
@@ -366,11 +366,11 @@ export default function ClientsPage() {
           
           {filteredClients.length === 0 && (
             <div className="text-center py-8">
-              <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+              <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-foreground dark:text-white mb-2">
                 No clients found
               </h3>
-              <p className="text-gray-500 mb-4">
+              <p className="text-muted-foreground mb-4">
                 {searchTerm 
                   ? "Try adjusting your search criteria."
                   : "Get started by adding your first client."

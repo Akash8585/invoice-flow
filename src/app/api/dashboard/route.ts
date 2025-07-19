@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth/auth';
 import { db } from '@/db';
-import { invoices, bills, clients, products, invoiceItems } from '@/db/schema';
+import { invoices, bills, clients, items, inventory } from '@/db/schema';
 import { eq, and, gte, desc, sql } from 'drizzle-orm';
 
 export async function GET(request: NextRequest) {
@@ -41,9 +41,9 @@ export async function GET(request: NextRequest) {
       .from(invoices)
       .where(and(eq(invoices.userId, userId), eq(invoices.status, 'paid'))),
 
-      // Total Expenses (sum of paid bills)
+      // Total Revenue from Bills (sum of paid bills)
       db.select({
-        total: sql<number>`COALESCE(SUM(${bills.amount}), 0)`,
+        total: sql<number>`COALESCE(SUM(${bills.total}), 0)`,
         count: sql<number>`COUNT(*)`
       })
       .from(bills)
@@ -61,9 +61,9 @@ export async function GET(request: NextRequest) {
         sql`${invoices.issueDate} < ${lastMonth}`
       )),
 
-      // Last Month Expenses
+      // Last Month Revenue from Bills
       db.select({
-        total: sql<number>`COALESCE(SUM(${bills.amount}), 0)`
+        total: sql<number>`COALESCE(SUM(${bills.total}), 0)`
       })
       .from(bills)
       .where(and(
@@ -90,13 +90,13 @@ export async function GET(request: NextRequest) {
         sql`${clients.createdAt} < ${lastMonth}`
       )),
 
-      // Total Products
+      // Total Items
       db.select({
         count: sql<number>`COUNT(*)`,
-        totalValue: sql<number>`COALESCE(SUM(${products.price} * ${products.quantity}), 0)`
+        totalValue: sql<number>`COALESCE(SUM(${items.sellingPrice} * ${items.quantity}), 0)`
       })
-      .from(products)
-      .where(eq(products.userId, userId)),
+      .from(items)
+      .where(eq(items.userId, userId)),
 
       // Invoice Status Counts
       db.select({
@@ -111,10 +111,10 @@ export async function GET(request: NextRequest) {
       db.select({
         count: sql<number>`COUNT(*)`
       })
-      .from(products)
+      .from(inventory)
       .where(and(
-        eq(products.userId, userId),
-        sql`${products.quantity} <= ${products.minStock}`
+        eq(inventory.userId, userId),
+        sql`${inventory.availableQuantity} <= 5`
       )),
 
       // Recent Invoices
@@ -135,13 +135,14 @@ export async function GET(request: NextRequest) {
       // Recent Bills
       db.select({
         id: bills.id,
-        vendor: bills.vendor,
-        description: bills.description,
-        amount: bills.amount,
+        billNumber: bills.billNumber,
+        total: bills.total,
         status: bills.status,
-        createdAt: bills.createdAt
+        createdAt: bills.createdAt,
+        clientName: clients.name
       })
       .from(bills)
+      .leftJoin(clients, eq(bills.clientId, clients.id))
       .where(eq(bills.userId, userId))
       .orderBy(desc(bills.createdAt))
       .limit(3)
@@ -149,15 +150,15 @@ export async function GET(request: NextRequest) {
 
     // Calculate stats
     const totalRevenue = Number(totalRevenueResult[0]?.total || 0);
-    const totalExpenses = Number(totalExpensesResult[0]?.total || 0);
+    const totalBillsRevenue = Number(totalExpensesResult[0]?.total || 0);
     const lastMonthRevenue = Number(lastMonthRevenueResult[0]?.total || 0);
-    const lastMonthExpenses = Number(lastMonthExpensesResult[0]?.total || 0);
-    const netProfit = totalRevenue - totalExpenses;
-    const lastMonthProfit = lastMonthRevenue - lastMonthExpenses;
+    const lastMonthBillsRevenue = Number(lastMonthExpensesResult[0]?.total || 0);
+    const totalRevenueCombined = totalRevenue + totalBillsRevenue;
+    const lastMonthRevenueCombined = lastMonthRevenue + lastMonthBillsRevenue;
     const totalClients = Number(totalClientsResult[0]?.count || 0);
     const lastMonthClients = Number(lastMonthClientsResult[0]?.count || 0);
     const stockItems = Number(totalProductsResult[0]?.count || 0);
-    const stockValue = Number(totalProductsResult[0]?.totalValue || 0);
+    // const stockValue = Number(totalProductsResult[0]?.totalValue || 0); // Commented out unused variable
     const lowStockItems = Number(lowStockResult[0]?.count || 0);
 
     // Calculate percentage changes
@@ -166,9 +167,7 @@ export async function GET(request: NextRequest) {
       return Number(((current - previous) / previous * 100).toFixed(1));
     };
 
-    const revenueChange = calculatePercentageChange(totalRevenue, lastMonthRevenue);
-    const expensesChange = calculatePercentageChange(totalExpenses, lastMonthExpenses);
-    const profitChange = calculatePercentageChange(netProfit, lastMonthProfit);
+    const revenueChange = calculatePercentageChange(totalRevenueCombined, lastMonthRevenueCombined);
     const clientsChange = calculatePercentageChange(totalClients, lastMonthClients);
 
     // Process invoice status counts
@@ -192,9 +191,9 @@ export async function GET(request: NextRequest) {
       })),
       ...recentBillsResult.map(bill => ({
         id: bill.id,
-        type: 'expense' as const,
-        description: `${bill.description} - ${bill.vendor}`,
-        amount: Number(bill.amount),
+        type: 'bill' as const,
+        description: `Bill ${bill.billNumber} - ${bill.clientName || 'Unknown Client'}`,
+        amount: Number(bill.total),
         date: bill.createdAt.toISOString().split('T')[0],
         status: bill.status
       }))
@@ -202,18 +201,14 @@ export async function GET(request: NextRequest) {
 
     // Real percentage changes based on historical data
     const stats = {
-      totalRevenue,
+      totalRevenue: totalRevenueCombined,
       revenueChange,
-      totalExpenses,
-      expensesChange,
-      netProfit,
-      profitChange,
-      stockItems,
-      stockChange: clientsChange, // Using clients change as a proxy for stock change
       totalClients,
+      clientsChange,
+      stockItems,
+      lowStockItems,
       pendingInvoices,
       overdueInvoices,
-      lowStockItems,
     };
 
     return NextResponse.json({

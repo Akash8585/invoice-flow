@@ -1,6 +1,6 @@
 "use client"
 
-
+import { Suspense } from "react";
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { forgetPassword } from "@/lib/auth/auth-client";
@@ -8,7 +8,7 @@ import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import { useState } from "react";
 
-export default  function page() {
+function ForgotPasswordPageContent() {
     const params = useSearchParams();
     const emailFromQuery = params.get('email') || " ";
     const [email, setEmail] = useState(emailFromQuery);
@@ -51,4 +51,19 @@ export default  function page() {
     {message && <p>{message}</p>}
 </form>
     )
-    }
+}
+
+export default function ForgotPasswordPage() {
+    return (
+        <Suspense fallback={
+            <div className="p-6 max-w-md mx-auto space-y-6 container">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                    <p className="text-muted-foreground">Loading...</p>
+                </div>
+            </div>
+        }>
+            <ForgotPasswordPageContent />
+        </Suspense>
+    );
+}

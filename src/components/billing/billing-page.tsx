@@ -1,818 +1,334 @@
-"use client";
+'use client';
 
-import { useState } from 'react';
-import { Plus, Receipt, Edit, Trash2, FileText, Send, DollarSign, Calendar } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
+import { 
+  Plus, 
+  Edit, 
+  Trash2, 
+  Download, 
+  Receipt,
+  Package,
+  DollarSign,
+  TrendingUp,
+  MoreHorizontal,
+  Filter,
+  CalendarIcon
+} from 'lucide-react';
+
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
-import { Textarea } from '@/components/ui/textarea';
-import { useForm, useFieldArray, SubmitHandler } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import React from 'react'; // Added missing import
 
-// Import hooks
-import { useInventory } from '@/hooks/use-inventory';
-import { useClients } from '@/hooks/use-clients';
-import { useBills, useCreateBill, useDeleteBill, useUpdateBill, useUpdateBillStatus, useBillDetails } from '@/hooks/use-bills';
-
-// Form schema
-const billingFormSchema = z.object({
-  clientId: z.string().min(1, 'Client is required'),
-  billDate: z.string().min(1, 'Bill date is required'),
-  invoiceNumber: z.string().min(1, 'Invoice number is required'),
-  items: z.array(z.object({
-    inventoryId: z.string().min(1, 'Item is required'),
-    quantity: z.number().min(0.01, 'Quantity must be greater than 0'),
-    sellingPrice: z.number().min(0, 'Price must be 0 or greater')
-  })).min(1, 'At least one item is required'),
-  taxRate: z.number().min(0).max(100).optional(),
-  extraCharges: z.array(z.object({
-    name: z.string().min(1, 'Charge name is required'),
-    amount: z.number().min(0, 'Amount must be 0 or greater')
-  })).optional(),
-  notes: z.string().optional(),
-  status: z.enum(['due', 'paid']),
-  dueDate: z.string().min(1, 'Due date is required')
-});
-
-export type BillingFormData = z.infer<typeof billingFormSchema>;
-
-// Generate invoice number
-const generateInvoiceNumber = () => {
-  const date = new Date();
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-  return `INV-${year}${month}${day}-${random}`;
-};
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 export default function BillingPage() {
-  const [isBillDialogOpen, setBillDialogOpen] = useState(false);
-  const [editingBill, setEditingBill] = useState<any>(null);
-  const [viewingBill, setViewingBill] = useState<any>(null);
-  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
-  const [editingBillId, setEditingBillId] = useState<string | null>(null);
+  const router = useRouter();
+  const [bills, setBills] = useState<any[]>([]);
+  const [availableInventory, setAvailableInventory] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [downloadingInvoice, setDownloadingInvoice] = useState<string | null>(null);
+  const [selectedBill, setSelectedBill] = useState<any>(null);
+  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
 
-  // TanStack Query hooks
-  const { data: inventory = [], isLoading: isLoadingInventory } = useInventory();
-  const { data: clients = [], isLoading: isLoadingClients } = useClients();
-  const { data: bills = [], isLoading: isLoadingBills, refetch: refetchBills } = useBills();
-  const { data: billDetails, isLoading: isLoadingBillDetails } = useBillDetails(editingBillId || '');
-  const createBillMutation = useCreateBill();
-  const deleteBillMutation = useDeleteBill();
-  const updateBillStatusMutation = useUpdateBillStatus();
-  const updateBillMutation = useUpdateBill();
-
-  // Form with validation
-  const { register, handleSubmit, reset, setValue, watch, control, formState: { errors } } = useForm<BillingFormData>({
-    resolver: zodResolver(billingFormSchema),
-    defaultValues: {
-      invoiceNumber: generateInvoiceNumber(),
-      billDate: new Date().toISOString().split('T')[0],
-      dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      items: [{ inventoryId: '', quantity: 1, sellingPrice: 0 }],
-      taxRate: 10,
-      extraCharges: [],
-      status: 'due',
-      clientId: ''
-    }
+  // Date filter state
+  const [dateFilter, setDateFilter] = useState<'today' | 'week' | 'month' | 'custom' | 'all'>('all');
+  const [customDateRange, setCustomDateRange] = useState<{
+    from: Date | undefined;
+    to: Date | undefined;
+  }>({
+    from: undefined,
+    to: undefined,
   });
 
-  const { fields: itemFields, append: appendItem, remove: removeItem } = useFieldArray({
-    control,
-    name: 'items'
-  });
+  // Fetch data
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // Fetch bills with items
+        const billsResponse = await fetch('/api/bills');
+        if (billsResponse.ok) {
+          const billsData = await billsResponse.json();
+          setBills(billsData);
+        }
 
-  const { fields: chargeFields, append: appendCharge, remove: removeCharge } = useFieldArray({
-    control,
-    name: 'extraCharges'
-  });
 
-  // Watch form values
-  const watchedItems = watch('items') || [];
-  const watchedCharges = watch('extraCharges') || [];
-  const watchedTaxRate = watch('taxRate') || 0;
-  const watchedClientId = watch('clientId');
 
-  // Calculate totals
-  const subtotal = watchedItems.reduce((sum, item) => {
-    return sum + ((item?.quantity || 0) * (item?.sellingPrice || 0));
-  }, 0);
-  
-  const extraChargesTotal = watchedCharges.reduce((sum, charge) => {
-    return sum + (charge?.amount || 0);
-  }, 0);
-  
-  // Use watchedTaxRate to ensure tax updates when rate changes
-  const tax = (subtotal * watchedTaxRate) / 100;
-  const grandTotal = subtotal + tax + extraChargesTotal;
-
-  // Handle form submission with stock update
-  const onSubmit: SubmitHandler<BillingFormData> = async (data) => {
-    try {
-      console.log('Form data being submitted:', data);
-      
-      // Ensure all required fields are present and properly formatted
-      const formattedData = {
-        ...data,
-        taxRate: data.taxRate || 0,
-        extraCharges: data.extraCharges || [],
-        items: data.items.map(item => ({
-          ...item,
-          quantity: Number(item.quantity),
-          sellingPrice: Number(item.sellingPrice)
-        }))
-      };
-      
-      console.log('Formatted data:', formattedData);
-      
-      if (editingBill) {
-        // strip properties that aren’t real bill columns
-        // (they’re stored in separate tables, the current endpoint doesn’t update them)
-        const { items, extraCharges, ...billOnly } = formattedData;
-
-        await updateBillMutation.mutateAsync({ id: editingBill.id, ...billOnly });
-        alert('Bill updated successfully!');
-      } else {
-        const result = await createBillMutation.mutateAsync(formattedData);
-        console.log('Bill creation result:', result);
-        alert('Bill created successfully and inventory updated!');
+        // Fetch inventory
+        const inventoryResponse = await fetch('/api/inventory');
+        if (inventoryResponse.ok) {
+          const inventoryData = await inventoryResponse.json();
+          setAvailableInventory(inventoryData.filter((inv: any) => parseFloat(inv.availableQuantity) > 0));
+        }
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        toast.error('Failed to load data');
+      } finally {
+        setIsLoading(false);
       }
-      
-      setBillDialogOpen(false);
-      reset({
-        invoiceNumber: generateInvoiceNumber(),
-        billDate: new Date().toISOString().split('T')[0],
-        dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        items: [{ inventoryId: '', quantity: 1, sellingPrice: 0 }],
-        taxRate: 10,
-        extraCharges: [],
-        status: 'due',
-        clientId: ''
-      });
-      setEditingBill(null);
-    } catch (error) {
-      console.error('Error saving bill:', error);
-      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
-      alert(`Error saving bill: ${errorMessage}`);
-    }
-  };
+    };
 
-  // Handle inventory item selection
-  const handleInventorySelect = (index: number, inventoryId: string) => {
-    const selectedItem = inventory.find(inv => inv.id === inventoryId);
-    if (selectedItem) {
-      setValue(`items.${index}.sellingPrice`, parseFloat(selectedItem.item.sellingPrice));
-    }
-  };
+    fetchData();
+  }, []);
 
-  // Get available inventory items (only those with stock)
-  const availableInventory = inventory.filter(inv => parseFloat(inv.availableQuantity) > 0);
-
-  // Get status badge
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'due':
-        return <Badge variant="default">Due</Badge>;
       case 'paid':
-        return <Badge variant="outline" className="text-green-600 border-green-600">Paid</Badge>;
+        return <Badge variant="default" className="bg-green-100 text-green-800 hover:bg-green-100">Paid</Badge>;
+      case 'due':
+        return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">Due</Badge>;
       default:
-        return <Badge variant="secondary">{status}</Badge>;
+        return <Badge variant="outline">{status}</Badge>;
     }
   };
 
-  // Handle bill deletion
   const handleDeleteBill = async (billId: string) => {
-    if (confirm('Are you sure you want to delete this bill? This will restore the inventory quantities.')) {
+    if (confirm('Are you sure you want to delete this bill? This action cannot be undone.')) {
       try {
-        await deleteBillMutation.mutateAsync(billId);
-        alert('Bill deleted successfully and inventory restored!');
+        const response = await fetch(`/api/bills/${billId}`, {
+          method: 'DELETE',
+        });
+
+        if (response.ok) {
+          setBills(bills.filter(bill => bill.id !== billId));
+          toast.success('Bill deleted successfully');
+        } else {
+          toast.error('Failed to delete bill');
+        }
       } catch (error) {
         console.error('Error deleting bill:', error);
-        const errorMessage = error instanceof Error ? error.message : 'Failed to delete bill';
-        alert(`Error: ${errorMessage}`);
+        toast.error('Failed to delete bill');
       }
     }
   };
 
-  // Handle bill status update
+  const handleDownloadInvoice = async (bill: any) => {
+    setDownloadingInvoice(bill.id);
+    try {
+      const response = await fetch(`/api/bills/${bill.id}/download`);
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `invoice-${bill.invoiceNumber}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        toast.success('Invoice downloaded successfully');
+      } else {
+        toast.error('Failed to download invoice');
+      }
+    } catch (error) {
+      console.error('Error downloading invoice:', error);
+      toast.error('Failed to download invoice');
+    } finally {
+      setDownloadingInvoice(null);
+    }
+  };
+
   const handleStatusUpdate = async (billId: string, newStatus: string) => {
     try {
-      await updateBillStatusMutation.mutateAsync({ id: billId, status: newStatus });
-      alert(`Bill status updated to ${newStatus}!`);
-    } catch (error) {
-      console.error('Error updating bill status:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to update status';
-      alert(`Error: ${errorMessage}`);
-    }
-  };
-
-  // Handle opening the edit dialog
-  const handleEditBill = (bill: any) => {
-    setEditingBill(bill);
-    setEditingBillId(bill.id);
-    
-    // Find the client and set form values
-    reset({
-      clientId: bill.client.id,
-      billDate: new Date(bill.billDate).toISOString().split('T')[0],
-      dueDate: bill.dueDate ? new Date(bill.dueDate).toISOString().split('T')[0] : 
-               new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      invoiceNumber: bill.invoiceNumber,
-      taxRate: parseFloat(bill.taxRate),
-      notes: bill.notes || '',
-      status: bill.status,
-      items: Array.isArray(bill.items) ? bill.items.map((item: any) => ({
-        inventoryId: item.inventoryId,
-        quantity: parseFloat(item.quantity),
-        sellingPrice: parseFloat(item.sellingPrice)
-      })) : [{ inventoryId: '', quantity: 1, sellingPrice: 0 }],
-      extraCharges: Array.isArray(bill.extraCharges) ? bill.extraCharges.map((charge: any) => ({
-        name: charge.name,
-        amount: parseFloat(charge.amount)
-      })) : []
-    });
-    
-    setBillDialogOpen(true);
-  };
-
-  // Effect to update form when bill details are loaded
-  React.useEffect(() => {
-    if (billDetails && editingBillId) {
-      reset({
-        clientId: billDetails.client.id,
-        billDate: new Date(billDetails.billDate).toISOString().split('T')[0],
-        dueDate: billDetails.dueDate ? new Date(billDetails.dueDate).toISOString().split('T')[0] : 
-                 new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        invoiceNumber: billDetails.invoiceNumber,
-        taxRate: parseFloat(billDetails.taxRate),
-        notes: billDetails.notes || '',
-        status: billDetails.status,
-        items: Array.isArray(billDetails.items) ? billDetails.items.map((item: any) => ({
-          inventoryId: item.inventoryId,
-          quantity: parseFloat(item.quantity),
-          sellingPrice: parseFloat(item.sellingPrice)
-        })) : [{ inventoryId: '', quantity: 1, sellingPrice: 0 }],
-        extraCharges: Array.isArray(billDetails.extraCharges) ? billDetails.extraCharges.map((charge: any) => ({
-          name: charge.name,
-          amount: parseFloat(charge.amount)
-        })) : []
+      const response = await fetch(`/api/bills/${billId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: newStatus }),
       });
-    }
-  }, [billDetails, editingBillId, reset]);
 
-  // Effect to refetch bills when dialogs close
-  React.useEffect(() => {
-    if (!isBillDialogOpen && !isViewDialogOpen) {
-      // Refetch bills to update the UI with the latest data
-      refetchBills();
-    }
-  }, [isBillDialogOpen, isViewDialogOpen, refetchBills]);
-
-  // Reset editing state when dialog closes
-  const handleDialogChange = (open: boolean) => {
-    setBillDialogOpen(open);
-    if (!open) {
-      setEditingBill(null);
-      setEditingBillId(null);
+      if (response.ok) {
+        setBills(bills.map(bill => 
+          bill.id === billId ? { ...bill, status: newStatus } : bill
+        ));
+        toast.success('Status updated successfully');
+      } else {
+        const error = await response.json();
+        toast.error(error.message || 'Failed to update status');
+      }
+    } catch (error) {
+      console.error('Error updating status:', error);
+      toast.error('Failed to update status');
     }
   };
 
-  // Handle viewing bill details
+  const handleEditBill = (bill: any) => {
+    // Store the bill data in sessionStorage for the edit form
+    sessionStorage.setItem('editingBill', JSON.stringify(bill));
+    router.push('/billing/new?edit=true');
+  };
+
+  // Date filtering logic
+  const getFilteredBills = () => {
+    if (dateFilter === 'all') return bills;
+
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - today.getDay());
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    return bills.filter(bill => {
+      const billDate = new Date(bill.billDate);
+      
+      switch (dateFilter) {
+        case 'today':
+          return billDate >= today;
+        case 'week':
+          return billDate >= startOfWeek;
+        case 'month':
+          return billDate >= startOfMonth;
+        case 'custom':
+          if (!customDateRange.from || !customDateRange.to) return true;
+          const fromDate = new Date(customDateRange.from);
+          const toDate = new Date(customDateRange.to);
+          toDate.setHours(23, 59, 59, 999); // End of day
+          return billDate >= fromDate && billDate <= toDate;
+        default:
+          return true;
+      }
+    });
+  };
+
   const handleViewBill = (bill: any) => {
-    setViewingBill(bill);
-    setIsViewDialogOpen(true);
+    setSelectedBill(bill);
+    setIsDetailsDialogOpen(true);
   };
-
-  // Loading state
-  const isLoading = isLoadingInventory || isLoadingClients || isLoadingBills;
 
   if (isLoading) {
-    return <div className="container mx-auto p-4 sm:p-6">Loading...</div>;
+    return (
+      <div className="container mx-auto p-4 sm:p-6">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading...</p>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="container mx-auto p-4 sm:p-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 sm:mb-8 gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
+          <h1 className="text-2xl sm:text-3xl font-bold">
             Billing
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
+          <p className="text-muted-foreground mt-1">
             Create bills from inventory and generate invoices
           </p>
         </div>
         
-        <Dialog open={isBillDialogOpen} onOpenChange={handleDialogChange}>
-          <DialogTrigger asChild>
-            <Button 
-              className="w-full sm:w-auto"
-              onClick={() => {
-                setEditingBill(null);
-                reset({
-                  invoiceNumber: generateInvoiceNumber(),
-                  billDate: new Date().toISOString().split('T')[0],
-                  dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-                  items: [{ inventoryId: '', quantity: 1, sellingPrice: 0 }],
-                  taxRate: 10,
-                  extraCharges: [],
-                  status: 'due',
-                  clientId: ''
-                });
-              }}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Create Bill
-            </Button>
-          </DialogTrigger>
+        <div className="flex flex-col sm:flex-row items-center gap-3">
+          {/* Date Filter */}
+          <div className="flex items-center gap-2">
+            <Filter className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium hidden sm:inline">Filter:</span>
+          </div>
           
-          {/* Clean Minimal Dialog like First Image */}
-          <DialogContent className="max-w-5xl w-full max-h-[90vh] overflow-y-auto">
+          <Select value={dateFilter} onValueChange={(value: any) => setDateFilter(value)}>
+            <SelectTrigger className="w-[140px]">
+              <SelectValue placeholder="Select period" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Till Now</SelectItem>
+              <SelectItem value="today">Today</SelectItem>
+              <SelectItem value="week">This Week</SelectItem>
+              <SelectItem value="month">This Month</SelectItem>
+              <SelectItem value="custom">Custom Range</SelectItem>
+            </SelectContent>
+          </Select>
 
-            <DialogHeader className="pb-4">
-              <DialogTitle className="text-2xl font-semibold">
-                {editingBill ? 'Edit Invoice' : 'New Invoice'}
-              </DialogTitle>
-              <DialogDescription className="text-gray-500">
-                Create professional invoices from your inventory items
-              </DialogDescription>
-            </DialogHeader>
-            
-            <form onSubmit={(e) => {
-              e.preventDefault();
-              handleSubmit((data) => {
-                onSubmit(data as unknown as BillingFormData);
-              })(e);
-            }} className="space-y-6 px-2 sm:px-4">
-              {/* Invoice Details - Simple Grid */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium">Invoice Details</h3>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Client</Label>
-                    <Select 
-                      value={watchedClientId || ''} 
-                      onValueChange={(value) => setValue('clientId', value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select client" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {clients.map((client) => (
-                          <SelectItem key={client.id} value={client.id}>
-                            {client.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {errors.clientId && (
-                      <p className="text-xs text-red-500">{errors.clientId.message}</p>
+          {dateFilter === 'custom' && (
+            <div className="flex items-center gap-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-[140px] justify-start text-left font-normal",
+                      !customDateRange.from && "text-muted-foreground"
                     )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Invoice Date</Label>
-                    <Input
-                      type="date"
-                      {...register('billDate')}
-                    />
-                    {errors.billDate && (
-                      <p className="text-xs text-red-500">{errors.billDate.message}</p>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Invoice Number</Label>
-                    <Input
-                      {...register('invoiceNumber')}
-                      placeholder="INV-YYYYMMDD-XXX"
-                    />
-                    {errors.invoiceNumber && (
-                      <p className="text-xs text-red-500">{errors.invoiceNumber.message}</p>
-                    )}
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Due Date</Label>
-                    <Input
-                      type="date"
-                      {...register('dueDate')}
-                    />
-                    {errors.dueDate && (
-                      <p className="text-xs text-red-500">{errors.dueDate.message}</p>
-                    )}
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Status</Label>
-                    <Select 
-                      defaultValue="due"
-                      value={watch('status')}
-                      onValueChange={(value: 'due' | 'paid') => setValue('status', value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="due">Due</SelectItem>
-                        <SelectItem value="paid">Paid</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    {errors.status && (
-                      <p className="text-xs text-red-500">{errors.status.message}</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Items - Simple List */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-medium">Items</h3>
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => appendItem({ inventoryId: '', quantity: 1, sellingPrice: 0 })}
                   >
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add Item
-                  </Button>
-                </div>
-
-                <div className="space-y-3">
-                  {itemFields.map((field, index) => (
-                    <div key={field.id} className="flex flex-col lg:flex-row lg:items-center gap-3 p-3 border rounded-lg">
-                      <div className="flex-1 min-w-0">
-                        <Select 
-                          value={watchedItems[index]?.inventoryId || ''} 
-                          onValueChange={(value) => {
-                            setValue(`items.${index}.inventoryId`, value);
-                            handleInventorySelect(index, value);
-                          }}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select item" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {availableInventory.map((inv) => (
-                              <SelectItem key={inv.id} value={inv.id}>
-                                <div>
-                                  <div className="font-medium">{inv.item.name}</div>
-                                  <div className="text-xs text-gray-500">
-                                    Available: {parseFloat(inv.availableQuantity).toFixed(2)} {inv.item.unit || 'pcs'}
-                                  </div>
-                                </div>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="flex items-center gap-3 lg:gap-2">
-                        <div className="w-20">
-                          <Input
-                            type="number"
-                            step="0.01"
-                            min="0.01"
-                            className="text-center"
-                            {...register(`items.${index}.quantity`, { valueAsNumber: true })}
-                            placeholder="1"
-                          />
-                        </div>
-
-                        <div className="w-24">
-                          <div className="relative">
-                            <DollarSign className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                            <Input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              className="pl-6"
-                              {...register(`items.${index}.sellingPrice`, { valueAsNumber: true })}
-                              placeholder="0"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="w-20 text-right font-medium">
-                          ${((watchedItems[index]?.quantity || 0) * (watchedItems[index]?.sellingPrice || 0)).toFixed(2)}
-                        </div>
-
-                        <Button 
-                          type="button" 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => removeItem(index)}
-                          disabled={itemFields.length === 1}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Extra Charges - Simple */}
-              {chargeFields.length > 0 && (
-                <div className="space-y-3">
-                  {chargeFields.map((field, index) => (
-                    <div key={field.id} className="flex items-center gap-3 p-3 border rounded-lg">
-                      <div className="flex-1">
-                        <Input
-                          {...register(`extraCharges.${index}.name`)}
-                          placeholder="Description (e.g., Delivery, Processing Fee)"
-                        />
-                      </div>
-
-                      <div className="w-32">
-                        <div className="relative">
-                          <DollarSign className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                          <Input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            className="pl-6"
-                            {...register(`extraCharges.${index}.amount`, { valueAsNumber: true })}
-                            placeholder="0.00"
-                          />
-                        </div>
-                      </div>
-
-                      <Button 
-                        type="button" 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => removeCharge(index)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <Button 
-                type="button" 
-                variant="outline" 
-                className="w-full border-dashed"
-                onClick={() => appendCharge({ name: '', amount: 0 })}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Add Extra Charge
-              </Button>
-
-              {/* Notes and Summary - Side by Side */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">Notes</Label>
-                  <Textarea
-                    rows={4}
-                    {...register('notes')}
-                    placeholder="Add any additional notes or terms..."
-                  />
-                </div>
-
-                <div className="space-y-3">
-                  <h3 className="text-sm font-medium">Summary</h3>
-                  
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span>Subtotal</span>
-                      <span>${subtotal.toFixed(2)}</span>
-                    </div>
-                    
-                    {extraChargesTotal > 0 && (
-                      <div className="flex justify-between">
-                        <span>Extra Charges</span>
-                        <span>${extraChargesTotal.toFixed(2)}</span>
-                      </div>
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {customDateRange.from ? (
+                      format(customDateRange.from, "LLL dd, y")
+                    ) : (
+                      <span>From date</span>
                     )}
-                    
-                    <div className="flex justify-between items-center">
-                      <div className="flex items-center gap-2">
-                        <span>Tax</span>
-                        <Input
-                          type="number"
-                          step="0.1"
-                          min="0"
-                          max="100"
-                          className="w-16 h-8 text-xs text-center"
-                          {...register('taxRate', { 
-                            valueAsNumber: true,
-                            onChange: (e) => {
-                              const value = parseFloat(e.target.value);
-                              setValue('taxRate', isNaN(value) ? 0 : value);
-                            }
-                          })}
-                        />
-                        <span>%</span>
-                      </div>
-                      <span>${tax.toFixed(2)}</span>
-                    </div>
-                    
-                    <div className="flex justify-between text-lg font-bold pt-2 border-t">
-                      <span>Total</span>
-                      <span>${grandTotal.toFixed(2)}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={customDateRange.from}
+                    onSelect={(date) => setCustomDateRange(prev => ({ ...prev, from: date }))}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
 
-              {/* Form Actions */}
-              <div className="flex justify-end gap-3 pt-4 border-t">
-                <Button 
-                  type="button" 
-                  variant="outline"
-                  onClick={() => setBillDialogOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit">
-                  {editingBill ? 'Update Invoice' : 'Create Invoice'}
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
-        
-        {/* View Bill Dialog */}
-        <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-          <DialogContent className="max-w-4xl w-full">
-            {viewingBill && (
-              <>
-                <DialogHeader>
-                  <div className="flex justify-between items-center">
-                    <DialogTitle className="text-2xl font-semibold">
-                      Invoice #{viewingBill.invoiceNumber}
-                    </DialogTitle>
-                    <div className="flex items-center">
-                      <span className="mr-2 text-sm">Status:</span>
-                      {getStatusBadge(viewingBill.status)}
-                    </div>
-                  </div>
-                  <DialogDescription className="text-gray-500 flex justify-between items-center">
-                    <span>Created on {new Date(viewingBill.createdAt).toLocaleDateString()}</span>
-                    <span className="text-sm">
-                      Last updated: {new Date(viewingBill.updatedAt).toLocaleDateString()}
-                    </span>
-                  </DialogDescription>
-                </DialogHeader>
-                
-                <div className="space-y-6 py-4">
-                  {/* Client Info */}
-                  <div className="grid grid-cols-2 gap-4 border-b pb-4">
-                    <div>
-                      <h3 className="text-sm font-medium text-gray-500 mb-2">Bill To:</h3>
-                      <div className="space-y-1">
-                        <p className="font-medium text-base">{viewingBill.client.name}</p>
-                        {viewingBill.client.email && <p className="text-sm">{viewingBill.client.email}</p>}
-                        {viewingBill.client.phone && <p className="text-sm">{viewingBill.client.phone}</p>}
-                        {viewingBill.client.address && <p className="text-sm">{viewingBill.client.address}</p>}
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="space-y-2">
-                        <div className="flex justify-end gap-3">
-                          <span className="text-gray-500 text-sm">Invoice Date:</span>
-                          <span className="font-medium">{new Date(viewingBill.billDate).toLocaleDateString()}</span>
-                        </div>
-                        {viewingBill.dueDate && (
-                          <div className="flex justify-end gap-3">
-                            <span className="text-gray-500 text-sm">Due Date:</span>
-                            <span className="font-medium">{new Date(viewingBill.dueDate).toLocaleDateString()}</span>
-                          </div>
-                        )}
-                        <div className="flex justify-end gap-3 pt-2">
-                          <span className="text-gray-500 text-sm">Total:</span>
-                          <span className="font-bold text-lg">${parseFloat(viewingBill.total).toFixed(2)}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Items Table */}
-                  <div>
-                    <h3 className="text-sm font-medium mb-2">Items</h3>
-                    <div className="border rounded-md overflow-hidden">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Item</TableHead>
-                            <TableHead className="text-right">Qty</TableHead>
-                            <TableHead className="text-right">Price</TableHead>
-                            <TableHead className="text-right">Total</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {Array.isArray(viewingBill.items) && viewingBill.items.length > 0 ? (
-                            viewingBill.items.map((item: any) => (
-                              <TableRow key={item.id}>
-                                <TableCell>{item.inventory?.item?.name || 'Unknown Item'}</TableCell>
-                                <TableCell className="text-right">{parseFloat(item.quantity).toFixed(2)}</TableCell>
-                                <TableCell className="text-right">${parseFloat(item.sellingPrice).toFixed(2)}</TableCell>
-                                <TableCell className="text-right">${parseFloat(item.total).toFixed(2)}</TableCell>
-                              </TableRow>
-                            ))
-                          ) : (
-                            <TableRow>
-                              <TableCell colSpan={4} className="text-center py-4 text-gray-500">
-                                No items found
-                              </TableCell>
-                            </TableRow>
-                          )}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </div>
-                  
-                  {/* Summary */}
-                  <div className="flex justify-end">
-                    <div className="w-64 space-y-2 border-t pt-3">
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">Subtotal:</span>
-                        <span>${parseFloat(viewingBill.subtotal).toFixed(2)}</span>
-                      </div>
-                      {parseFloat(viewingBill.extraChargesTotal) > 0 && (
-                        <div className="flex justify-between">
-                          <span className="text-gray-500">Extra Charges:</span>
-                          <span>${parseFloat(viewingBill.extraChargesTotal).toFixed(2)}</span>
-                        </div>
-                      )}
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">Tax ({parseFloat(viewingBill.taxRate)}%):</span>
-                        <span>${parseFloat(viewingBill.tax).toFixed(2)}</span>
-                      </div>
-                      <div className="flex justify-between font-bold pt-2 border-t">
-                        <span>Total:</span>
-                        <span>${parseFloat(viewingBill.total).toFixed(2)}</span>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Notes */}
-                  {viewingBill.notes && (
-                    <div>
-                      <h3 className="text-sm font-medium mb-1">Notes</h3>
-                      <p className="text-gray-600 text-sm">{viewingBill.notes}</p>
-                    </div>
-                  )}
-                  
-                  {/* Actions */}
-                  <div className="flex justify-end gap-3 pt-4 border-t">
-                    <Button 
-                      variant="outline" 
-                      onClick={() => setIsViewDialogOpen(false)}
-                    >
-                      Close
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      onClick={() => {
-                        setIsViewDialogOpen(false);
-                        handleEditBill(viewingBill);
-                      }}
-                    >
-                      <Edit className="mr-2 h-4 w-4" />
-                      Edit
-                    </Button>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button>
-                          {viewingBill.status === 'due' ? 'Mark as Paid' : 'Update Status'}
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => {
-                          handleStatusUpdate(viewingBill.id, 'due');
-                          setViewingBill({...viewingBill, status: 'due'});
-                        }}>
-                          Mark as Due
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => {
-                          handleStatusUpdate(viewingBill.id, 'paid');
-                          setViewingBill({...viewingBill, status: 'paid'});
-                        }}>
-                          Mark as Paid
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </div>
-              </>
-            )}
-          </DialogContent>
-        </Dialog>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-[140px] justify-start text-left font-normal",
+                      !customDateRange.to && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {customDateRange.to ? (
+                      format(customDateRange.to, "LLL dd, y")
+                    ) : (
+                      <span>To date</span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={customDateRange.to}
+                    onSelect={(date) => setCustomDateRange(prev => ({ ...prev, to: date }))}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          )}
+
+          {dateFilter !== 'all' && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setDateFilter('all');
+                setCustomDateRange({ from: undefined, to: undefined });
+              }}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              Clear
+            </Button>
+          )}
+
+          <Button 
+            className="w-full sm:w-auto"
+            onClick={() => router.push('/billing/new')}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Create New Bill
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -823,29 +339,17 @@ export default function BillingPage() {
             <Receipt className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{bills.length}</div>
+            <div className="text-2xl font-bold">{getFilteredBills().length}</div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Available Items</CardTitle>
-            <Receipt className="h-4 w-4 text-muted-foreground" />
+            <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{availableInventory.length}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Due Bills</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {bills.filter(bill => bill.status === 'due').length}
-            </div>
           </CardContent>
         </Card>
 
@@ -856,7 +360,19 @@ export default function BillingPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              ${bills.reduce((sum, bill) => sum + parseFloat(bill.total), 0).toFixed(2)}
+              ${getFilteredBills().reduce((sum, bill) => sum + parseFloat(bill.total || 0), 0).toFixed(2)}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Paid Bills</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {getFilteredBills().filter(bill => bill.status === 'paid').length}
             </div>
           </CardContent>
         </Card>
@@ -866,84 +382,302 @@ export default function BillingPage() {
       <Card>
         <CardHeader>
           <CardTitle>Bills</CardTitle>
-          <CardDescription>
-            Manage your bills and generate invoices
-          </CardDescription>
         </CardHeader>
         <CardContent>
-          {bills.length === 0 ? (
-            <div className="text-center py-8">
-              <Receipt className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">No bills found</h3>
-              <p className="mt-1 text-sm text-gray-500">
-                Get started by creating your first bill.
-              </p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
+          <div className="rounded-md border">
+                        <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Invoice #</TableHead>
+                  <TableHead>Client</TableHead>
+                  <TableHead>Items</TableHead>
+                  <TableHead>Quantity</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Due Date</TableHead>
+                  <TableHead>Total</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {getFilteredBills().length === 0 ? (
                   <TableRow>
-                    <TableHead>Invoice Number</TableHead>
-                    <TableHead>Client</TableHead>
-                    <TableHead>Total</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead></TableHead>
+                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                      {bills.length === 0 ? 'No bills found. Create your first bill to get started.' : 'No bills found for the selected date range.'}
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {bills.map((bill) => (
+                ) : (
+                  getFilteredBills().map((bill) => (
                     <TableRow 
-                      key={bill.id} 
-                      className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
+                      key={bill.id}
+                      className="cursor-pointer hover:bg-muted/50"
                       onClick={() => handleViewBill(bill)}
                     >
                       <TableCell className="font-medium">{bill.invoiceNumber}</TableCell>
+                      <TableCell>{bill.client?.name || 'Unknown Client'}</TableCell>
                       <TableCell>
-                        <div>
-                          <div className="font-medium">{bill.client.name}</div>
-                          <div className="text-sm text-muted-foreground">{bill.client.email}</div>
+                        <div className="space-y-1">
+                          {Array.isArray(bill.items) && bill.items.length > 0 ? (
+                            bill.items.slice(0, 2).map((item: any, index: number) => (
+                              <div key={index} className="text-sm">
+                                <span className="font-medium">
+                                  {item.inventory?.item?.name || 'Unknown Item'}
+                                </span>
+                              </div>
+                            ))
+                          ) : (
+                            <span className="text-muted-foreground text-sm">No items</span>
+                          )}
+                          {Array.isArray(bill.items) && bill.items.length > 2 && (
+                            <div className="text-xs text-muted-foreground">
+                              +{bill.items.length - 2} more items
+                            </div>
+                          )}
                         </div>
                       </TableCell>
-                      <TableCell>${parseFloat(bill.total).toFixed(2)}</TableCell>
-                      <TableCell>{getStatusBadge(bill.status)}</TableCell>
+                      <TableCell>
+                        {Array.isArray(bill.items) && bill.items.length > 0 ? (
+                          <div className="text-sm">
+                            {bill.items.reduce((total: number, item: any) => total + parseFloat(item.quantity), 0).toFixed(2)}
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground text-sm">0</span>
+                        )}
+                      </TableCell>
                       <TableCell>{new Date(bill.billDate).toLocaleDateString()}</TableCell>
-                      <TableCell onClick={(e) => e.stopPropagation()}>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0">
-                              <span className="sr-only">Open menu</span>
-                              <Receipt className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleEditBill(bill)}>
-                              <Edit className="mr-2 h-4 w-4" />
-                              Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleStatusUpdate(bill.id, bill.status === 'paid' ? 'due' : 'paid')}>
-                              <Send className="mr-2 h-4 w-4" />
-                              Mark as {bill.status === 'paid' ? 'Due' : 'Paid'}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              className="text-red-600"
-                              onClick={() => handleDeleteBill(bill.id)}
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                      <TableCell>
+                        {bill.dueDate ? new Date(bill.dueDate).toLocaleDateString() : '-'}
+                      </TableCell>
+                      <TableCell>${parseFloat(bill.total || 0).toFixed(2)}</TableCell>
+                      <TableCell>{getStatusBadge(bill.status)}</TableCell>
+                      <TableCell>
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                <MoreHorizontal className="h-4 w-4" />
+                                <span className="sr-only">Open menu</span>
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleEditBill(bill)}>
+                                <Edit className="mr-2 h-4 w-4" />
+                                Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleDownloadInvoice(bill)}>
+                                <Download className="mr-2 h-4 w-4" />
+                                Download Invoice
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={() => handleStatusUpdate(bill.id, bill.status === 'paid' ? 'due' : 'paid')}
+                              >
+                                {bill.status === 'paid' ? (
+                                  <>
+                                    <span className="mr-2">📋</span>
+                                    Mark as Due
+                                  </>
+                                ) : (
+                                  <>
+                                    <span className="mr-2">✅</span>
+                                    Mark as Paid
+                                  </>
+                                )}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                className="text-red-600"
+                                onClick={() => handleDeleteBill(bill.id)}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
                       </TableCell>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
-  );
-} 
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+                 </CardContent>
+       </Card>
+
+       {/* Bill Details Dialog */}
+       <Dialog open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen}>
+         <DialogContent className="w-[95vw] max-w-6xl overflow-visible">
+           {selectedBill && (
+             <>
+               <DialogHeader>
+                 <div className="flex justify-between items-center">
+                   <DialogTitle className="text-2xl font-semibold">
+                     Invoice #{selectedBill.invoiceNumber}
+                   </DialogTitle>
+                   <div className="flex items-center gap-2">
+                     <span className="text-sm text-muted-foreground">Status:</span>
+                     {getStatusBadge(selectedBill.status)}
+                   </div>
+                 </div>
+                 <DialogDescription className="flex justify-between items-center">
+                   <span>Created on {new Date(selectedBill.createdAt).toLocaleDateString()}</span>
+                   <span className="text-sm text-muted-foreground">
+                     Last updated: {new Date(selectedBill.updatedAt).toLocaleDateString()}
+                   </span>
+                 </DialogDescription>
+               </DialogHeader>
+               
+               <div className="space-y-6 py-4">
+                 {/* Client Info */}
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 border-b pb-4">
+                   <div>
+                     <h3 className="text-sm font-medium text-muted-foreground mb-2">Bill To:</h3>
+                     <div className="space-y-1">
+                       <p className="font-medium text-base">{selectedBill.client?.name || 'Unknown Client'}</p>
+                       {selectedBill.client?.email && <p className="text-sm">{selectedBill.client.email}</p>}
+                       {selectedBill.client?.phone && <p className="text-sm">{selectedBill.client.phone}</p>}
+                       {selectedBill.client?.address && <p className="text-sm">{selectedBill.client.address}</p>}
+                     </div>
+                   </div>
+                   <div className="text-right">
+                     <div className="space-y-2">
+                       <div className="flex justify-end gap-3">
+                         <span className="text-muted-foreground text-sm">Invoice Date:</span>
+                         <span className="font-medium">{new Date(selectedBill.billDate).toLocaleDateString()}</span>
+                       </div>
+                       {selectedBill.dueDate && (
+                         <div className="flex justify-end gap-3">
+                           <span className="text-muted-foreground text-sm">Due Date:</span>
+                           <span className="font-medium">{new Date(selectedBill.dueDate).toLocaleDateString()}</span>
+                         </div>
+                       )}
+                       <div className="flex justify-end gap-3 pt-2">
+                         <span className="text-muted-foreground text-sm">Total:</span>
+                         <span className="font-bold text-lg">${parseFloat(selectedBill.total || 0).toFixed(2)}</span>
+                       </div>
+                     </div>
+                   </div>
+                 </div>
+                 
+                 {/* Items Table */}
+                 <div>
+                   <h3 className="text-sm font-medium mb-3">Items</h3>
+                   <div className="border rounded-md overflow-hidden">
+                     <Table>
+                       <TableHeader>
+                         <TableRow>
+                           <TableHead>Item</TableHead>
+                           <TableHead className="text-right">Qty</TableHead>
+                           <TableHead className="text-right">Price</TableHead>
+                           <TableHead className="text-right">Total</TableHead>
+                         </TableRow>
+                       </TableHeader>
+                       <TableBody>
+                         {Array.isArray(selectedBill.items) && selectedBill.items.length > 0 ? (
+                           selectedBill.items.map((item: any) => (
+                             <TableRow key={item.id}>
+                               <TableCell>{item.inventory?.item?.name || 'Unknown Item'}</TableCell>
+                               <TableCell className="text-right">{parseFloat(item.quantity).toFixed(2)}</TableCell>
+                               <TableCell className="text-right">${parseFloat(item.sellingPrice).toFixed(2)}</TableCell>
+                               <TableCell className="text-right">${parseFloat(item.total).toFixed(2)}</TableCell>
+                             </TableRow>
+                           ))
+                         ) : (
+                           <TableRow>
+                             <TableCell colSpan={4} className="text-center py-4 text-muted-foreground">
+                               No items found
+                             </TableCell>
+                           </TableRow>
+                         )}
+                       </TableBody>
+                     </Table>
+                   </div>
+                 </div>
+                 
+                 {/* Summary */}
+                 <div className="flex justify-end">
+                   <div className="w-64 space-y-2 border-t pt-3">
+                     <div className="flex justify-between">
+                       <span className="text-muted-foreground">Subtotal:</span>
+                       <span>${parseFloat(selectedBill.subtotal || 0).toFixed(2)}</span>
+                     </div>
+                     {parseFloat(selectedBill.extraChargesTotal || 0) > 0 && (
+                       <div className="flex justify-between">
+                         <span className="text-muted-foreground">Extra Charges:</span>
+                         <span>${parseFloat(selectedBill.extraChargesTotal).toFixed(2)}</span>
+                       </div>
+                     )}
+                     <div className="flex justify-between">
+                       <span className="text-muted-foreground">Tax ({parseFloat(selectedBill.taxRate || 0)}%):</span>
+                       <span>${parseFloat(selectedBill.tax || 0).toFixed(2)}</span>
+                     </div>
+                     <div className="flex justify-between font-bold pt-2 border-t">
+                       <span>Total:</span>
+                       <span>${parseFloat(selectedBill.total || 0).toFixed(2)}</span>
+                     </div>
+                   </div>
+                 </div>
+                 
+                 {/* Notes */}
+                 {selectedBill.notes && (
+                   <div>
+                     <h3 className="text-sm font-medium mb-2">Notes</h3>
+                     <p className="text-muted-foreground text-sm bg-muted/50 p-3 rounded-md">{selectedBill.notes}</p>
+                   </div>
+                 )}
+                 
+                 {/* Actions */}
+                 <div className="flex justify-end gap-3 pt-4 border-t">
+                   <Button 
+                     variant="outline" 
+                     onClick={() => setIsDetailsDialogOpen(false)}
+                   >
+                     Close
+                   </Button>
+                   <Button 
+                     variant="outline" 
+                     onClick={() => {
+                       setIsDetailsDialogOpen(false);
+                       handleEditBill(selectedBill);
+                     }}
+                   >
+                     <Edit className="mr-2 h-4 w-4" />
+                     Edit
+                   </Button>
+                   <Button 
+                     variant="outline" 
+                     onClick={() => handleDownloadInvoice(selectedBill)}
+                     disabled={downloadingInvoice === selectedBill?.id}
+                   >
+                     <Download className="mr-2 h-4 w-4" />
+                     {downloadingInvoice === selectedBill?.id ? 'Downloading...' : 'Download Invoice'}
+                   </Button>
+                   <DropdownMenu>
+                     <DropdownMenuTrigger asChild>
+                       <Button>
+                         {selectedBill.status === 'due' ? 'Mark as Paid' : 'Update Status'}
+                       </Button>
+                     </DropdownMenuTrigger>
+                     <DropdownMenuContent align="end">
+                       <DropdownMenuItem onClick={() => {
+                         handleStatusUpdate(selectedBill.id, 'due');
+                         setSelectedBill({...selectedBill, status: 'due'});
+                       }}>
+                         Mark as Due
+                       </DropdownMenuItem>
+                       <DropdownMenuItem onClick={() => {
+                         handleStatusUpdate(selectedBill.id, 'paid');
+                         setSelectedBill({...selectedBill, status: 'paid'});
+                       }}>
+                         Mark as Paid
+                       </DropdownMenuItem>
+                     </DropdownMenuContent>
+                   </DropdownMenu>
+                 </div>
+               </div>
+             </>
+           )}
+         </DialogContent>
+       </Dialog>
+     </div>
+   );
+ } 

@@ -8,13 +8,13 @@ import {
   FileText, 
   Users, 
   Package, 
-  TrendingDown, 
   BarChart3,
   Truck,
   Warehouse,
   Receipt,
   Menu,
-  X
+  X,
+  DollarSign
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -44,6 +44,7 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
     { href: "/inventory", icon: Warehouse, label: "Inventory" },
     { href: "/suppliers", icon: Truck, label: "Suppliers" },
     { href: "/billing", icon: Receipt, label: "Billing" },
+    { href: "/expenses", icon: DollarSign, label: "Expenses" },
     { href: "/reports", icon: BarChart3, label: "Reports" },
   ];
 
@@ -60,7 +61,7 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
             className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
               isActive
                 ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300' 
-                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                : 'text-foreground hover:bg-muted'
             }`}
             onClick={() => setIsMobileMenuOpen(false)}
           >
@@ -73,14 +74,14 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
   );
 
   return (
-    <div className="flex min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="flex h-screen bg-background overflow-hidden">
       {/* Mobile Menu Button */}
       <div className="lg:hidden fixed top-4 left-4 z-50">
         <Button
           variant="outline"
           size="icon"
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className="bg-white dark:bg-gray-800"
+          className="bg-card"
         >
           {isMobileMenuOpen ? (
             <X className="h-4 w-4" />
@@ -99,47 +100,49 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
       )}
 
       {/* Sidebar Navigation - Desktop */}
-      <aside className="hidden lg:block w-64 bg-white dark:bg-gray-800 shadow-sm border-r border-gray-200 dark:border-gray-700">
-        <div className="p-6">
+      <aside className="hidden lg:flex lg:flex-col lg:w-64 bg-card shadow-sm border-r border-border">
+        <div className="p-6 flex-shrink-0">
           <Link href="/dashboard" className="flex items-center gap-2">
             <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
               <FileText className="h-4 w-4 text-white" />
             </div>
-            <span className="text-xl font-bold text-gray-900 dark:text-white">
+            <span className="text-xl font-bold text-foreground dark:text-white">
               InvoiceFlow
             </span>
           </Link>
         </div>
         
-        <nav className="px-4 pb-4">
+        <nav className="px-4 pb-4 flex-1 overflow-y-auto">
           <NavLinks />
         </nav>
       </aside>
 
       {/* Sidebar Navigation - Mobile */}
-      <aside className={`lg:hidden fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-800 shadow-lg transform transition-transform duration-300 ease-in-out ${
+      <aside className={`lg:hidden fixed inset-y-0 left-0 z-50 w-64 bg-card shadow-lg transform transition-transform duration-300 ease-in-out flex flex-col ${
         isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
       }`}>
-        <div className="p-6">
+        <div className="p-6 flex-shrink-0">
           <Link href="/dashboard" className="flex items-center gap-2">
             <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
               <FileText className="h-4 w-4 text-white" />
             </div>
-            <span className="text-xl font-bold text-gray-900 dark:text-white">
+            <span className="text-xl font-bold text-foreground dark:text-white">
               InvoiceFlow
             </span>
           </Link>
         </div>
         
-        <nav className="px-4 pb-4">
+        <nav className="px-4 pb-4 flex-1 overflow-y-auto">
           <NavLinks />
         </nav>
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-auto lg:ml-0">
-        <div className="lg:hidden h-16"></div> {/* Spacer for mobile menu button */}
-        {children}
+      <main className="flex-1 flex flex-col overflow-hidden">
+        <div className="lg:hidden h-16 flex-shrink-0"></div> {/* Spacer for mobile menu button */}
+        <div className="flex-1 overflow-y-auto">
+          {children}
+        </div>
       </main>
     </div>
   );

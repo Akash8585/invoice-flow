@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth/auth';
 import { db } from '@/db';
-import { bills, billItems, billExtraCharges, inventory, clients } from '@/db/schema';
-import { eq, desc, and } from 'drizzle-orm';
+import { bills, billItems, billExtraCharges, inventory, clients, items } from '@/db/schema';
+import { eq, desc } from 'drizzle-orm';
 import { extendedBillSchema } from '@/lib/schemas';
 
 export async function GET(request: NextRequest) {
@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
 
     const userId = session.user.id;
 
-    // Get bills with client information and items
+    // Get bills with client information
     const billsList = await db
       .select({
         id: bills.id,
@@ -46,7 +46,55 @@ export async function GET(request: NextRequest) {
       .where(eq(bills.userId, userId))
       .orderBy(desc(bills.createdAt));
 
-    return NextResponse.json(billsList);
+    // Get items for each bill
+    const billsWithItems = await Promise.all(
+      billsList.map(async (bill) => {
+        const billItemsResult = await db
+          .select({
+            id: billItems.id,
+            inventoryId: billItems.inventoryId,
+            quantity: billItems.quantity,
+            sellingPrice: billItems.sellingPrice,
+            total: billItems.total,
+            inventoryId2: inventory.id,
+            itemId: items.id,
+            itemName: items.name,
+            itemSku: items.sku,
+            itemUnit: items.unit,
+            itemCostPrice: items.costPrice,
+          })
+          .from(billItems)
+          .leftJoin(inventory, eq(billItems.inventoryId, inventory.id))
+          .leftJoin(items, eq(inventory.itemId, items.id))
+          .where(eq(billItems.billId, bill.id));
+
+        // Reconstruct the nested object structure
+        const formattedBillItems = billItemsResult.map(item => ({
+          id: item.id,
+          inventoryId: item.inventoryId,
+          quantity: item.quantity,
+          sellingPrice: item.sellingPrice,
+          total: item.total,
+          inventory: {
+            id: item.inventoryId2,
+            item: {
+              id: item.itemId,
+              name: item.itemName,
+              sku: item.itemSku,
+              unit: item.itemUnit,
+              costPrice: item.itemCostPrice,
+            }
+          }
+        }));
+
+        return {
+          ...bill,
+          items: formattedBillItems
+        };
+      })
+    );
+
+    return NextResponse.json(billsWithItems);
 
   } catch (error) {
     console.error('Bills API error:', error);

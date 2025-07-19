@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth/auth';
 import { db } from '@/db';
-import { bills, billItems, billExtraCharges, inventory, clients } from '@/db/schema';
+import { bills, billItems, billExtraCharges, inventory, clients, items } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth.api.getSession({
@@ -18,7 +18,7 @@ export async function GET(
     }
 
     const userId = session.user.id;
-    const billId = params.id;
+    const { id: billId } = await params;
 
     // Get bill with client information
     const billHeader = await db
@@ -55,17 +55,42 @@ export async function GET(
 
     const bill = billHeader[0];
 
-    // Get bill items
+    // Get bill items with inventory and item details
     const billItemsResult = await db
       .select({
-        id:           billItems.id,
-        inventoryId:  billItems.inventoryId,
-        quantity:     billItems.quantity,
+        id: billItems.id,
+        inventoryId: billItems.inventoryId,
+        quantity: billItems.quantity,
         sellingPrice: billItems.sellingPrice,
-        total:        billItems.total,
+        total: billItems.total,
+        inventoryId2: inventory.id,
+        itemId: items.id,
+        itemName: items.name,
+        itemSku: items.sku,
+        itemUnit: items.unit,
       })
       .from(billItems)
+      .leftJoin(inventory, eq(billItems.inventoryId, inventory.id))
+      .leftJoin(items, eq(inventory.itemId, items.id))
       .where(eq(billItems.billId, billId));
+
+    // Reconstruct the nested object structure
+    const formattedBillItems = billItemsResult.map(item => ({
+      id: item.id,
+      inventoryId: item.inventoryId,
+      quantity: item.quantity,
+      sellingPrice: item.sellingPrice,
+      total: item.total,
+      inventory: {
+        id: item.inventoryId2,
+        item: {
+          id: item.itemId,
+          name: item.itemName,
+          sku: item.itemSku,
+          unit: item.itemUnit,
+        }
+      }
+    }));
 
     // Get extra charges
     const extraChargesResult = await db
@@ -76,7 +101,7 @@ export async function GET(
     // Combine all data
     const fullBill = {
       ...bill,
-      items: billItemsResult,
+      items: formattedBillItems,
       extraCharges: extraChargesResult
     };
 
@@ -93,7 +118,7 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth.api.getSession({
@@ -105,18 +130,8 @@ export async function PUT(
     }
 
     const userId = session.user.id;
-    const billId = params.id;
+    const { id: billId } = await params;
     const body = await request.json();
-
-    // Map only allowed fields and convert types where necessary
-    const updateData: any = { updatedAt: new Date() };
-
-    if (body.clientId) updateData.clientId = body.clientId;
-    if (body.billDate) updateData.billDate = new Date(body.billDate);
-    if (body.invoiceNumber) updateData.invoiceNumber = body.invoiceNumber;
-    if (body.status) updateData.status = body.status;
-    if (body.taxRate !== undefined) updateData.taxRate = body.taxRate.toString();
-    if (body.notes !== undefined) updateData.notes = body.notes;
 
     // Check if bill exists and belongs to user
     const existingBill = await db
@@ -129,14 +144,111 @@ export async function PUT(
       return NextResponse.json({ error: 'Bill not found' }, { status: 404 });
     }
 
-    // Update bill
-    const [updatedBill] = await db
-      .update(bills)
-      .set(updateData)
-      .where(and(eq(bills.id, billId), eq(bills.userId, userId)))
-      .returning();
+    // Get current bill items to restore inventory
+    const currentItems = await db
+      .select()
+      .from(billItems)
+      .where(eq(billItems.billId, billId));
 
-    return NextResponse.json(updatedBill);
+    // Restore inventory quantities
+    for (const item of currentItems) {
+      const currentInventory = await db
+        .select({ availableQuantity: inventory.availableQuantity })
+        .from(inventory)
+        .where(eq(inventory.id, item.inventoryId))
+        .limit(1);
+
+      if (currentInventory.length > 0) {
+        const newQuantity = parseFloat(currentInventory[0].availableQuantity) + parseFloat(item.quantity);
+        await db
+          .update(inventory)
+          .set({
+            availableQuantity: newQuantity.toString()
+          })
+          .where(eq(inventory.id, item.inventoryId));
+      }
+    }
+
+    // Delete current items and extra charges
+    await db.delete(billItems).where(eq(billItems.billId, billId));
+    await db.delete(billExtraCharges).where(eq(billExtraCharges.billId, billId));
+
+    // Calculate new totals
+    let subtotal = 0;
+    const newItems = [];
+
+    // Process items
+    for (const item of body.items || []) {
+      const itemTotal = item.quantity * item.sellingPrice;
+      subtotal += itemTotal;
+
+      // Insert new bill item
+      const [newItem] = await db
+        .insert(billItems)
+        .values({
+          billId,
+          inventoryId: item.inventoryId,
+          quantity: item.quantity.toString(),
+          sellingPrice: item.sellingPrice.toString(),
+          total: itemTotal.toString()
+        })
+        .returning();
+
+      newItems.push(newItem);
+
+      // Update inventory
+      const currentInventory = await db
+        .select({ availableQuantity: inventory.availableQuantity })
+        .from(inventory)
+        .where(eq(inventory.id, item.inventoryId))
+        .limit(1);
+
+      if (currentInventory.length > 0) {
+        const newQuantity = parseFloat(currentInventory[0].availableQuantity) - item.quantity;
+        await db
+          .update(inventory)
+          .set({
+            availableQuantity: newQuantity.toString()
+          })
+          .where(eq(inventory.id, item.inventoryId));
+      }
+    }
+
+    // Process extra charges
+    let extraChargesTotal = 0;
+    for (const charge of body.extraCharges || []) {
+      extraChargesTotal += charge.amount;
+      await db.insert(billExtraCharges).values({
+        billId,
+        name: charge.name,
+        amount: charge.amount.toString()
+      });
+    }
+
+    // Calculate tax and total
+    const taxRate = parseFloat(body.taxRate || 0);
+    const tax = (subtotal + extraChargesTotal) * (taxRate / 100);
+    const total = subtotal + extraChargesTotal + tax;
+
+    // Update bill
+    await db
+      .update(bills)
+      .set({
+        clientId: body.clientId,
+        billDate: new Date(body.billDate),
+        invoiceNumber: body.invoiceNumber,
+        status: body.status,
+        subtotal: subtotal.toString(),
+        taxRate: taxRate.toString(),
+        tax: tax.toString(),
+        extraChargesTotal: extraChargesTotal.toString(),
+        total: total.toString(),
+        notes: body.notes,
+        updatedAt: new Date()
+      })
+      .where(eq(bills.id, billId));
+
+    return NextResponse.json({ success: true });
 
   } catch (error) {
     console.error('Update bill API error:', error);
@@ -149,7 +261,7 @@ export async function PUT(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth.api.getSession({
@@ -161,7 +273,7 @@ export async function PATCH(
     }
 
     const userId = session.user.id;
-    const billId = params.id;
+    const { id: billId } = await params;
     const body = await request.json();
 
     // Check if bill exists and belongs to user
@@ -198,7 +310,7 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth.api.getSession({
@@ -210,7 +322,7 @@ export async function DELETE(
     }
 
     const userId = session.user.id;
-    const billId = params.id;
+    const { id: billId } = await params;
 
     // Check if bill exists and belongs to user
     const existingBill = await db

@@ -1,10 +1,16 @@
 "use client"
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { CalendarIcon } from "lucide-react";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 import { 
   DollarSign, 
   TrendingUp, 
@@ -12,16 +18,14 @@ import {
   Users, 
   FileText, 
   Package, 
-  AlertTriangle,
   Plus,
-  Eye,
-  Edit,
-  Trash2,
-  BarChart3,
-  Truck,
-  Receipt
+  Receipt,
+  Filter
 } from "lucide-react";
 import Link from "next/link";
+import { useBills } from "@/hooks/use-bills";
+import { useInventory } from "@/hooks/use-inventory";
+import { toast } from 'sonner';
 
 interface DashboardStats {
   totalRevenue: number;
@@ -33,9 +37,6 @@ interface DashboardStats {
   stockItems: number;
   stockChange: number;
   totalClients: number;
-  pendingInvoices: number;
-  overdueInvoices: number;
-  lowStockItems: number;
 }
 
 interface RecentTransaction {
@@ -48,41 +49,133 @@ interface RecentTransaction {
 }
     
 export default function DashboardPage() {
-  const [stats, setStats] = useState<DashboardStats>({
-    totalRevenue: 0,
-    revenueChange: 0,
-    totalExpenses: 0,
-    expensesChange: 0,
-    netProfit: 0,
-    profitChange: 0,
-    stockItems: 0,
-    stockChange: 0,
-    totalClients: 0,
-    pendingInvoices: 0,
-    overdueInvoices: 0,
-    lowStockItems: 0,
+  // Date filter state
+  const [dateFilter, setDateFilter] = useState<'today' | 'week' | 'month' | 'custom' | 'all'>('all');
+  const [customDateRange, setCustomDateRange] = useState<{
+    from: Date | undefined;
+    to: Date | undefined;
+  }>({
+    from: undefined,
+    to: undefined,
   });
 
-  const [recentTransactions, setRecentTransactions] = useState<RecentTransaction[]>([]);
+  // Fetch real data from APIs
+  const { data: bills = [], isLoading: isLoadingBills, refetch: refetchBills } = useBills();
+  const { data: inventory = [], isLoading: isLoadingInventory, refetch: refetchInventory } = useInventory();
 
-  useEffect(() => {
-    // Fetch dashboard data
-    fetchDashboardData();
-  }, []);
+  // Date filtering logic
+  const getFilteredBills = () => {
+    if (dateFilter === 'all') return bills;
 
-  const fetchDashboardData = async () => {
-    try {
-      const response = await fetch('/api/dashboard');
-      if (response.ok) {
-        const data = await response.json();
-        setStats(data.stats);
-        setRecentTransactions(data.recentTransactions);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - today.getDay());
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    return bills.filter(bill => {
+      const billDate = new Date(bill.billDate);
+      
+      switch (dateFilter) {
+        case 'today':
+          return billDate >= today;
+        case 'week':
+          return billDate >= startOfWeek;
+        case 'month':
+          return billDate >= startOfMonth;
+        case 'custom':
+          if (!customDateRange.from || !customDateRange.to) return true;
+          const fromDate = new Date(customDateRange.from);
+          const toDate = new Date(customDateRange.to);
+          toDate.setHours(23, 59, 59, 999); // End of day
+          return billDate >= fromDate && billDate <= toDate;
+        default:
+          return true;
       }
-    } catch (error) {
-      console.error('Failed to fetch dashboard data:', error);
-      // Keep default empty state - no sample data
-    }
+    });
   };
+
+  // Calculate real-time stats
+  const calculateStats = (): DashboardStats => {
+    const filteredBills = getFilteredBills();
+    
+    // Calculate total revenue from paid bills
+    const totalRevenue = filteredBills
+      .filter(bill => bill.status === 'paid')
+      .reduce((sum, bill) => sum + parseFloat(bill.total), 0);
+
+    // Calculate total expenses (cost price of stock sold)
+    // We need to calculate this from bill items and their associated inventory cost prices
+    let totalExpenses = 0;
+    
+    // Get all paid bills
+    const paidBills = filteredBills.filter(bill => bill.status === 'paid');
+    
+    // For each paid bill, calculate the cost of items sold
+    paidBills.forEach(bill => {
+      // Get bill items for this bill
+      const billItemsForBill = bill.items || [];
+      
+      billItemsForBill.forEach((billItem: any) => {
+        // Get cost price from the item data
+        if (billItem.inventory?.item?.costPrice) {
+          const costPrice = parseFloat(billItem.inventory.item.costPrice);
+          const quantitySold = parseFloat(billItem.quantity);
+          totalExpenses += costPrice * quantitySold;
+        }
+      });
+    });
+
+    // Calculate net profit (revenue - expenses)
+    const netProfit = totalRevenue - totalExpenses;
+
+    // Calculate total clients (unique clients from filtered bills)
+    const uniqueClients = new Set(filteredBills.map(bill => bill.client.id));
+    const totalClients = uniqueClients.size;
+
+    // Calculate stock items (total inventory items)
+    const stockItems = inventory.length;
+
+    return {
+      totalRevenue,
+      revenueChange: 0, // Would need historical data to calculate
+      totalExpenses,
+      expensesChange: 0,
+      netProfit,
+      profitChange: 0,
+      stockItems,
+      stockChange: 0,
+      totalClients,
+    };
+  };
+
+  // Generate recent transactions from bills
+  const generateRecentTransactions = (): RecentTransaction[] => {
+    const filteredBills = getFilteredBills();
+    return filteredBills
+      .slice(0, 5) // Show last 5 transactions
+      .map(bill => ({
+        id: bill.id,
+        type: 'invoice' as const,
+        description: `Invoice #${bill.invoiceNumber} - ${bill.client.name}`,
+        amount: parseFloat(bill.total),
+        date: bill.billDate,
+        status: bill.status,
+      }))
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  };
+
+  const stats = calculateStats();
+  const recentTransactions = generateRecentTransactions();
+
+  // Calculate additional stats
+  const filteredBills = getFilteredBills();
+  const totalBills = filteredBills.length;
+  const paidBills = filteredBills.filter(bill => bill.status === 'paid').length;
+  const averageBillAmount = totalBills > 0 ? stats.totalRevenue / totalBills : 0;
+  const isLoading = isLoadingBills || isLoadingInventory;
+
+
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -95,7 +188,7 @@ export default function DashboardPage() {
     // Don't show percentage if change is 0 and there's no base data
     if (change === 0) {
       return (
-        <div className="flex items-center gap-1 text-gray-500">
+        <div className="flex items-center gap-1 text-muted-foreground">
           <span className="text-sm font-medium">No change</span>
         </div>
       );
@@ -113,29 +206,127 @@ export default function DashboardPage() {
     );
   };
 
+  if (isLoading) {
+    return (
+      <div className="container mx-auto p-4 sm:p-6">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading dashboard data...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto p-4 sm:p-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 sm:mb-8 gap-4">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
+            <h1 className="text-2xl sm:text-3xl font-bold">
               InvoiceFlow Dashboard
             </h1>
-            <p className="text-gray-600 dark:text-gray-400 mt-1">
+            <p className="text-muted-foreground mt-1">
               Manage your invoices, expenses, and inventory
             </p>
           </div>
-          <div className="flex flex-col sm:flex-row gap-3">
-            <Link href="/invoices/new">
+          <div className="flex flex-col sm:flex-row items-center gap-3">
+            {/* Date Filter */}
+            <div className="flex items-center gap-2">
+              <Filter className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium hidden sm:inline">Filter:</span>
+            </div>
+            
+            <Select value={dateFilter} onValueChange={(value: any) => setDateFilter(value)}>
+              <SelectTrigger className="w-[140px]">
+                <SelectValue placeholder="Select period" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Till Now</SelectItem>
+                <SelectItem value="today">Today</SelectItem>
+                <SelectItem value="week">This Week</SelectItem>
+                <SelectItem value="month">This Month</SelectItem>
+                <SelectItem value="custom">Custom Range</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {dateFilter === 'custom' && (
+              <div className="flex items-center gap-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-[140px] justify-start text-left font-normal",
+                        !customDateRange.from && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {customDateRange.from ? (
+                        format(customDateRange.from, "LLL dd, y")
+                      ) : (
+                        <span>From date</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={customDateRange.from}
+                      onSelect={(date) => setCustomDateRange(prev => ({ ...prev, from: date }))}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-[140px] justify-start text-left font-normal",
+                        !customDateRange.to && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {customDateRange.to ? (
+                        format(customDateRange.to, "LLL dd, y")
+                      ) : (
+                        <span>To date</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={customDateRange.to}
+                      onSelect={(date) => setCustomDateRange(prev => ({ ...prev, to: date }))}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            )}
+
+            {dateFilter !== 'all' && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setDateFilter('all');
+                  setCustomDateRange({ from: undefined, to: undefined });
+                }}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                Clear
+              </Button>
+            )}
+
+            <Link href="/billing/new">
               <Button className="w-full sm:w-auto">
                 <Plus className="h-4 w-4 mr-2" />
-                New Invoice
-              </Button>
-            </Link>
-            <Link href="/clients/new">
-              <Button variant="outline" className="w-full sm:w-auto">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Client
+                New Bill
               </Button>
             </Link>
           </div>
@@ -150,13 +341,13 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="text-xl sm:text-2xl font-bold">{formatCurrency(stats.totalRevenue)}</div>
-              {formatChange(stats.revenueChange)}
+              <p className="text-xs text-muted-foreground mt-1">From paid bills only</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Expenses</CardTitle>
+              <CardTitle className="text-sm font-medium">Cost of Stock Sold</CardTitle>
               <TrendingDown className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -172,7 +363,7 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="text-xl sm:text-2xl font-bold">{formatCurrency(stats.netProfit)}</div>
-              {formatChange(stats.profitChange)}
+              <p className="text-xs text-muted-foreground mt-1">Revenue - Cost of Stock Sold</p>
             </CardContent>
           </Card>
 
@@ -188,52 +379,54 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        {/* Quick Stats */}
+
+
+        {/* Summary Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 sm:mb-8">
-          <Card className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
+          <Card>
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-blue-600 dark:text-blue-400">Total Clients</p>
-                  <p className="text-xl sm:text-2xl font-bold text-blue-700 dark:text-blue-300">{stats.totalClients}</p>
+                  <p className="text-sm text-muted-foreground">Total Bills</p>
+                  <p className="text-xl sm:text-2xl font-bold">{totalBills}</p>
                 </div>
-                <Users className="h-6 w-6 sm:h-8 sm:w-8 text-blue-500" />
+                <Receipt className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground" />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800">
+          <Card>
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-green-600 dark:text-green-400">Pending Invoices</p>
-                  <p className="text-xl sm:text-2xl font-bold text-green-700 dark:text-green-300">{stats.pendingInvoices}</p>
+                  <p className="text-sm text-muted-foreground">Paid Bills</p>
+                  <p className="text-xl sm:text-2xl font-bold text-green-600">{paidBills}</p>
                 </div>
                 <FileText className="h-6 w-6 sm:h-8 sm:w-8 text-green-500" />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-yellow-50 dark:bg-yellow-950 border-yellow-200 dark:border-yellow-800">
+          <Card>
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-yellow-600 dark:text-yellow-400">Overdue Invoices</p>
-                  <p className="text-xl sm:text-2xl font-bold text-yellow-700 dark:text-yellow-300">{stats.overdueInvoices}</p>
+                  <p className="text-sm text-muted-foreground">Total Clients</p>
+                  <p className="text-xl sm:text-2xl font-bold">{stats.totalClients}</p>
                 </div>
-                <AlertTriangle className="h-6 w-6 sm:h-8 sm:w-8 text-yellow-500" />
+                <Users className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground" />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-800">
+          <Card>
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-red-600 dark:text-red-400">Low Stock Items</p>
-                  <p className="text-xl sm:text-2xl font-bold text-red-700 dark:text-red-300">{stats.lowStockItems}</p>
+                  <p className="text-sm text-muted-foreground">Avg Bill Amount</p>
+                  <p className="text-xl sm:text-2xl font-bold">{formatCurrency(averageBillAmount)}</p>
                 </div>
-                <Package className="h-6 w-6 sm:h-8 sm:w-8 text-red-500" />
+                <DollarSign className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground" />
               </div>
             </CardContent>
           </Card>
@@ -250,9 +443,9 @@ export default function DashboardPage() {
           <CardContent>
             {recentTransactions.length === 0 ? (
               <div className="text-center py-8">
-                <FileText className="mx-auto h-8 w-8 sm:h-12 sm:w-12 text-gray-400" />
-                <h3 className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">No recent activity</h3>
-                <p className="mt-1 text-sm text-gray-500">
+                <FileText className="mx-auto h-8 w-8 sm:h-12 sm:w-12 text-muted-foreground" />
+                <h3 className="mt-2 text-sm font-semibold">No recent activity</h3>
+                <p className="mt-1 text-sm text-muted-foreground">
                   Your recent transactions will appear here.
                 </p>
               </div>
@@ -273,10 +466,10 @@ export default function DashboardPage() {
                         )}
                       </div>
                       <div>
-                        <p className="font-medium text-gray-900 dark:text-white text-sm sm:text-base">
+                        <p className="font-medium text-foreground dark:text-white text-sm sm:text-base">
                           {transaction.description}
                         </p>
-                        <p className="text-xs sm:text-sm text-gray-500">
+                        <p className="text-xs sm:text-sm text-muted-foreground">
                           {new Date(transaction.date).toLocaleDateString()}
                         </p>
                       </div>
@@ -300,60 +493,7 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Quick Actions */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg sm:text-xl">Quick Actions</CardTitle>
-            <CardDescription>
-              Frequently used actions to manage your business
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              <Link href="/invoices/new">
-                <Button variant="outline" className="w-full h-auto p-4 flex flex-col items-center gap-2">
-                  <Plus className="h-6 w-6" />
-                  <span className="text-sm font-medium">Create Invoice</span>
-                </Button>
-              </Link>
-              
-              <Link href="/clients">
-                <Button variant="outline" className="w-full h-auto p-4 flex flex-col items-center gap-2">
-                  <Users className="h-6 w-6" />
-                  <span className="text-sm font-medium">Manage Clients</span>
-                </Button>
-              </Link>
-              
-              <Link href="/inventory">
-                <Button variant="outline" className="w-full h-auto p-4 flex flex-col items-center gap-2">
-                  <Package className="h-6 w-6" />
-                  <span className="text-sm font-medium">Check Inventory</span>
-                </Button>
-              </Link>
-              
-              <Link href="/reports">
-                <Button variant="outline" className="w-full h-auto p-4 flex flex-col items-center gap-2">
-                  <BarChart3 className="h-6 w-6" />
-                  <span className="text-sm font-medium">View Reports</span>
-                </Button>
-              </Link>
-              
-              <Link href="/suppliers">
-                <Button variant="outline" className="w-full h-auto p-4 flex flex-col items-center gap-2">
-                  <Truck className="h-6 w-6" />
-                  <span className="text-sm font-medium">Manage Suppliers</span>
-                </Button>
-              </Link>
-              
-              <Link href="/billing">
-                <Button variant="outline" className="w-full h-auto p-4 flex flex-col items-center gap-2">
-                  <Receipt className="h-6 w-6" />
-                  <span className="text-sm font-medium">Create Bills</span>
-                </Button>
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
+
     </div>
   );
 }

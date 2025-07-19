@@ -109,10 +109,10 @@ export function SuppliersPage() {
     <div className="container mx-auto p-4 sm:p-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 sm:mb-8 gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground dark:text-white">
             Suppliers & Vendors
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
+          <p className="text-muted-foreground dark:text-muted-foreground mt-1">
             Manage your suppliers and vendor relationships
           </p>
         </div>
@@ -323,9 +323,9 @@ export function SuppliersPage() {
         <CardContent>
           {currentFilteredSuppliers.length === 0 ? (
             <div className="text-center py-8">
-              <Truck className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">No suppliers found</h3>
-              <p className="mt-1 text-sm text-gray-500">
+              <Truck className="mx-auto h-12 w-12 text-muted-foreground" />
+              <h3 className="mt-2 text-sm font-semibold text-foreground dark:text-white">No suppliers found</h3>
+              <p className="mt-1 text-sm text-muted-foreground">
                 {suppliers.length === 0 ? 'Get started by adding your first supplier.' : 'Try adjusting your search.'}
               </p>
             </div>

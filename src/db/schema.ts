@@ -94,9 +94,12 @@ export const inventory = pgTable("inventory", {
 	userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
 	itemId: text('item_id').notNull().references(() => items.id, { onDelete: 'cascade' }),
 	supplierId: text('supplier_id').references(() => suppliers.id, { onDelete: 'set null' }),
+	purchaseBillId: text('purchase_bill_id').references(() => purchaseBills.id, { onDelete: 'set null' }),
 	batchNumber: text('batch_number'),
 	quantity: decimal('quantity', { precision: 10, scale: 2 }).notNull(),
 	availableQuantity: decimal('available_quantity', { precision: 10, scale: 2 }).notNull(),
+	costPrice: decimal('cost_price', { precision: 10, scale: 2 }).notNull(),
+	sellingPrice: decimal('selling_price', { precision: 10, scale: 2 }).notNull(),
 	purchaseDate: timestamp('purchase_date').notNull(),
 	expiryDate: timestamp('expiry_date'),
 	location: text('location'),
@@ -179,3 +182,58 @@ export const payments = pgTable("payments", {
 	status: text('status').notNull().default('completed'),
 	createdAt: timestamp('created_at').$defaultFn(() => new Date()).notNull()
 				});
+
+// Purchase Bill system
+export const purchaseBills = pgTable("purchase_bills", {
+	id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+	userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+	supplierId: text('supplier_id').references(() => suppliers.id, { onDelete: 'set null' }),
+	billNumber: text('bill_number').notNull(),
+	billDate: timestamp('bill_date').notNull(),
+	subtotal: decimal('subtotal', { precision: 10, scale: 2 }).notNull(),
+	taxRate: decimal('tax_rate', { precision: 5, scale: 2 }).notNull().default('0.00'),
+	tax: decimal('tax', { precision: 10, scale: 2 }).notNull().default('0'),
+	extraChargesTotal: decimal('extra_charges_total', { precision: 10, scale: 2 }).notNull().default('0'),
+	total: decimal('total', { precision: 10, scale: 2 }).notNull(),
+	status: text('status').notNull().default('pending'), // pending, received, cancelled
+	notes: text('notes'),
+	location: text('location'),
+	createdAt: timestamp('created_at').$defaultFn(() => new Date()).notNull(),
+	updatedAt: timestamp('updated_at').$defaultFn(() => new Date()).notNull()
+});
+
+export const purchaseBillItems = pgTable("purchase_bill_items", {
+	id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+	purchaseBillId: text('purchase_bill_id').notNull().references(() => purchaseBills.id, { onDelete: 'cascade' }),
+	itemId: text('item_id').notNull().references(() => items.id, { onDelete: 'cascade' }),
+	quantity: decimal('quantity', { precision: 10, scale: 2 }).notNull(),
+	costPrice: decimal('cost_price', { precision: 10, scale: 2 }).notNull(),
+	total: decimal('total', { precision: 10, scale: 2 }).notNull(),
+	batchNumber: text('batch_number'),
+	expiryDate: timestamp('expiry_date'),
+	createdAt: timestamp('created_at').$defaultFn(() => new Date()).notNull(),
+	updatedAt: timestamp('updated_at').$defaultFn(() => new Date()).notNull()
+});
+
+export const purchaseBillExtraCharges = pgTable("purchase_bill_extra_charges", {
+	id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+	purchaseBillId: text('purchase_bill_id').notNull().references(() => purchaseBills.id, { onDelete: 'cascade' }),
+	name: text('name').notNull(),
+	amount: decimal('amount', { precision: 10, scale: 2 }).notNull(),
+	createdAt: timestamp('created_at').$defaultFn(() => new Date()).notNull(),
+	updatedAt: timestamp('updated_at').$defaultFn(() => new Date()).notNull()
+});
+
+// Expenses table for tracking purchase-related expenses
+export const expenses = pgTable("expenses", {
+	id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+	userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+	purchaseBillId: text('purchase_bill_id').references(() => purchaseBills.id, { onDelete: 'set null' }),
+	category: text('category').notNull(), // 'purchase', 'shipping', 'tax', 'other'
+	description: text('description').notNull(),
+	amount: decimal('amount', { precision: 10, scale: 2 }).notNull(),
+	expenseDate: timestamp('expense_date').notNull(),
+	notes: text('notes'),
+	createdAt: timestamp('created_at').$defaultFn(() => new Date()).notNull(),
+	updatedAt: timestamp('updated_at').$defaultFn(() => new Date()).notNull()
+});

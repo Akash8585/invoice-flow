@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth/auth';
 import { db } from '@/db';
-import { invoices, bills, clients, invoiceItems } from '@/db/schema';
-import { eq, and, gte, desc, sql } from 'drizzle-orm';
+import { invoices, bills, clients } from '@/db/schema';
+import { eq, and, gte } from 'drizzle-orm';
 
 export async function GET(request: NextRequest) {
   try {
@@ -41,8 +41,7 @@ export async function GET(request: NextRequest) {
     const [
       invoicesData,
       billsData,
-      clientsData,
-      invoiceItemsData
+      clientsData
     ] = await Promise.all([
       // Invoices
       db.select({
@@ -60,9 +59,8 @@ export async function GET(request: NextRequest) {
 
       // Bills
       db.select({
-        amount: bills.amount,
+        total: bills.total,
         status: bills.status,
-        category: bills.category,
         createdAt: bills.createdAt
       })
       .from(bills)
@@ -80,18 +78,7 @@ export async function GET(request: NextRequest) {
       .from(clients)
       .where(eq(clients.userId, userId)),
 
-      // Invoice Items for category analysis
-      db.select({
-        description: invoiceItems.description,
-        total: invoiceItems.total,
-        invoiceId: invoiceItems.invoiceId
-      })
-      .from(invoiceItems)
-      .leftJoin(invoices, eq(invoiceItems.invoiceId, invoices.id))
-      .where(and(
-        eq(invoices.userId, userId),
-        gte(invoices.issueDate, startDate)
-      ))
+
     ]);
 
     // Process sales overview data
@@ -120,7 +107,7 @@ export async function GET(request: NextRequest) {
                  billDate >= monthStart && 
                  billDate <= monthEnd;
         })
-        .reduce((sum, bill) => sum + Number(bill.amount), 0);
+        .reduce((sum, bill) => sum + Number(bill.total), 0);
 
       salesOverview.push({
         month: monthName,

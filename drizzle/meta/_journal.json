@@ -36,6 +36,20 @@
       "when": 1751382856577,
       "tag": "0004_tough_mandroid",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1752927058235,
+      "tag": "0005_parched_namorita",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1752934052156,
+      "tag": "0006_unique_smasher",
+      "breakpoints": true
     }
   ]
 }

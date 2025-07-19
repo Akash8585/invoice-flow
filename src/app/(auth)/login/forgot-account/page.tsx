@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { searchAccount } from '@/lib/actions'
 import { useRouter } from 'next/navigation'
 
-export default function page() {
+export default function ForgotAccountPage() {
     const [ email, setEmail] = useState('')
     const router = useRouter()
     const handleSearch = async(e: React.FormEvent) => {

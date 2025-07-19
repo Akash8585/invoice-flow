@@ -1,30 +1,38 @@
 "use client";
 
-import { Plus, Warehouse, Search, Edit, Trash2, Calendar, Package } from 'lucide-react';
+import { useState } from 'react';
+import { Plus, Warehouse, Search, Trash2, Package, Filter, CalendarIcon } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 // Imports for optimized architecture
 import { useInventoryStore } from '@/stores/inventory-store';
 import { 
   useInventory, 
-  useCreateInventory, 
-  useUpdateInventory, 
   useDeleteInventory
 } from '@/hooks/use-inventory';
 import { useItems } from '@/hooks/use-items';
 import { useSuppliers } from '@/hooks/use-suppliers';
-import { InventoryForm, inventorySchema } from '@/lib/schemas';
 
 export default function InventoryPage() {
+  // Date filter state
+  const [dateFilter, setDateFilter] = useState<'today' | 'week' | 'month' | 'custom' | 'all'>('all');
+  const [customDateRange, setCustomDateRange] = useState<{
+    from: Date | undefined;
+    to: Date | undefined;
+  }>({
+    from: undefined,
+    to: undefined,
+  });
+
   // Zustand store (UI state only)
   const {
     searchTerm,
@@ -33,10 +41,6 @@ export default function InventoryPage() {
     setItemFilter,
     supplierFilter,
     setSupplierFilter,
-    isInventoryDialogOpen,
-    setInventoryDialogOpen,
-    editingInventory,
-    setEditingInventory,
     getFilteredInventory,
     getTotalInventory,
     getTotalValue,
@@ -48,60 +52,47 @@ export default function InventoryPage() {
   const { data: suppliers = [], isLoading: isLoadingSuppliers } = useSuppliers();
   
   // Mutations
-  const createInventoryMutation = useCreateInventory();
-  const updateInventoryMutation = useUpdateInventory();
   const deleteInventoryMutation = useDeleteInventory();
 
-  // Forms with Zod validation
-  const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<InventoryForm>({
-    resolver: zodResolver(inventorySchema),
-  });
+  // Date filtering logic
+  const getFilteredInventoryByDate = () => {
+    if (dateFilter === 'all') return inventory;
 
-  // Watch form values for controlled components
-  const watchedItemId = watch('itemId');
-  const watchedSupplierId = watch('supplierId');
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - today.getDay());
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    return inventory.filter(inv => {
+      const purchaseDate = new Date(inv.purchaseDate);
+      
+      switch (dateFilter) {
+        case 'today':
+          return purchaseDate >= today;
+        case 'week':
+          return purchaseDate >= startOfWeek;
+        case 'month':
+          return purchaseDate >= startOfMonth;
+        case 'custom':
+          if (!customDateRange.from || !customDateRange.to) return true;
+          const fromDate = new Date(customDateRange.from);
+          const toDate = new Date(customDateRange.to);
+          toDate.setHours(23, 59, 59, 999); // End of day
+          return purchaseDate >= fromDate && purchaseDate <= toDate;
+        default:
+          return true;
+      }
+    });
+  };
 
   // Get computed values from store using current data
-  const currentFilteredInventory = getFilteredInventory(inventory);
-  const currentTotalInventory = getTotalInventory(inventory);
-  const currentTotalValue = getTotalValue(inventory);
+  const dateFilteredInventory = getFilteredInventoryByDate();
+  const currentFilteredInventory = getFilteredInventory(dateFilteredInventory);
+  const currentTotalInventory = getTotalInventory(dateFilteredInventory);
+  const currentTotalValue = getTotalValue(dateFilteredInventory);
 
-  // Handle form submission
-  const onSubmit = async (data: InventoryForm) => {
-    if (editingInventory) {
-      updateInventoryMutation.mutate(
-        { id: editingInventory.id, inventory: data },
-        {
-          onSuccess: () => {
-            setInventoryDialogOpen(false);
-            setEditingInventory(null);
-            reset();
-          },
-        }
-      );
-    } else {
-      createInventoryMutation.mutate(data, {
-        onSuccess: () => {
-          setInventoryDialogOpen(false);
-          reset();
-        },
-      });
-    }
-  };
 
-  // Handle edit
-  const handleEdit = (inv: any) => {
-    setEditingInventory(inv);
-    setValue('itemId', inv.itemId);
-    setValue('supplierId', inv.supplierId || '');
-    setValue('batchNumber', inv.batchNumber || '');
-    setValue('quantity', parseFloat(inv.quantity));
-    setValue('purchaseDate', inv.purchaseDate.split('T')[0]);
-    setValue('expiryDate', inv.expiryDate ? inv.expiryDate.split('T')[0] : '');
-    setValue('location', inv.location || '');
-    setValue('notes', inv.notes || '');
-    setInventoryDialogOpen(true);
-  };
 
   // Handle delete
   const handleDelete = async (id: string) => {
@@ -125,174 +116,115 @@ export default function InventoryPage() {
     <div className="container mx-auto p-4 sm:p-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 sm:mb-8 gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground dark:text-white">
             Inventory Management
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
+          <p className="text-muted-foreground dark:text-muted-foreground mt-1">
             Track stock levels, suppliers, and purchase information
           </p>
         </div>
         
-        <Dialog open={isInventoryDialogOpen} onOpenChange={setInventoryDialogOpen}>
-          <DialogTrigger asChild>
-            <Button 
-              className="w-full sm:w-auto"
+        <div className="flex flex-col sm:flex-row items-center gap-3">
+          {/* Date Filter */}
+          <div className="flex items-center gap-2">
+            <Filter className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium hidden sm:inline">Filter:</span>
+          </div>
+          
+          <Select value={dateFilter} onValueChange={(value: any) => setDateFilter(value)}>
+            <SelectTrigger className="w-[140px]">
+              <SelectValue placeholder="Select period" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Till Now</SelectItem>
+              <SelectItem value="today">Today</SelectItem>
+              <SelectItem value="week">This Week</SelectItem>
+              <SelectItem value="month">This Month</SelectItem>
+              <SelectItem value="custom">Custom Range</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {dateFilter === 'custom' && (
+            <div className="flex items-center gap-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-[140px] justify-start text-left font-normal",
+                      !customDateRange.from && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {customDateRange.from ? (
+                      format(customDateRange.from, "LLL dd, y")
+                    ) : (
+                      <span>From date</span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={customDateRange.from}
+                    onSelect={(date) => setCustomDateRange(prev => ({ ...prev, from: date }))}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-[140px] justify-start text-left font-normal",
+                      !customDateRange.to && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {customDateRange.to ? (
+                      format(customDateRange.to, "LLL dd, y")
+                    ) : (
+                      <span>To date</span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={customDateRange.to}
+                    onSelect={(date) => setCustomDateRange(prev => ({ ...prev, to: date }))}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          )}
+
+          {dateFilter !== 'all' && (
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => {
-                setEditingInventory(null);
-                reset();
+                setDateFilter('all');
+                setCustomDateRange({ from: undefined, to: undefined });
               }}
+              className="text-muted-foreground hover:text-foreground"
             >
-              <Plus className="mr-2 h-4 w-4" />
-              Add Stock
+              Clear
             </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>
-                {editingInventory ? 'Edit Inventory' : 'Add New Stock'}
-              </DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="itemId">Item</Label>
-                  <Select 
-                    value={watchedItemId || undefined} 
-                    onValueChange={(value) => setValue('itemId', value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select item" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {items.map((item) => (
-                        <SelectItem key={item.id} value={item.id}>
-                          {item.name} ({item.sku})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {errors.itemId && (
-                    <p className="text-sm text-red-500 mt-1">{errors.itemId.message}</p>
-                  )}
-                </div>
+          )}
 
-                <div>
-                  <Label htmlFor="supplierId">Supplier (Optional)</Label>
-                  <Select 
-                    value={watchedSupplierId ? watchedSupplierId : 'none'} 
-                    onValueChange={(value) => setValue('supplierId', value === 'none' ? '' : value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select supplier" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">No Supplier</SelectItem>
-                      {suppliers.map((supplier) => (
-                        <SelectItem key={supplier.id} value={supplier.id}>
-                          {supplier.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+          <Button 
+            className="w-full sm:w-auto"
+            onClick={() => window.location.href = '/purchase-bills/new'}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Create Purchase Bill
+          </Button>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="batchNumber">Batch Number (Optional)</Label>
-                  <Input
-                    id="batchNumber"
-                    {...register('batchNumber')}
-                    placeholder="Enter batch number"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="location">Location (Optional)</Label>
-                  <Input
-                    id="location"
-                    {...register('location')}
-                    placeholder="Storage location"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="quantity">Quantity</Label>
-                <Input
-                  id="quantity"
-                  type="number"
-                  step="0.01"
-                  {...register('quantity', { 
-                    required: 'Quantity is required',
-                    min: { value: 0, message: 'Quantity must be positive' },
-                    valueAsNumber: true
-                  })}
-                  placeholder="0"
-                />
-                {errors.quantity && (
-                  <p className="text-sm text-red-500 mt-1">{errors.quantity.message}</p>
-                )}
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="purchaseDate">Purchase Date</Label>
-                  <Input
-                    id="purchaseDate"
-                    type="date"
-                    {...register('purchaseDate', { required: 'Purchase date is required' })}
-                  />
-                  {errors.purchaseDate && (
-                    <p className="text-sm text-red-500 mt-1">{errors.purchaseDate.message}</p>
-                  )}
-                </div>
-
-                <div>
-                  <Label htmlFor="expiryDate">Expiry Date (Optional)</Label>
-                  <Input
-                    id="expiryDate"
-                    type="date"
-                    {...register('expiryDate')}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="notes">Notes (Optional)</Label>
-                <Input
-                  id="notes"
-                  {...register('notes')}
-                  placeholder="Additional notes"
-                />
-              </div>
-
-              <div className="flex gap-2 pt-4">
-                <Button 
-                  type="submit" 
-                  className="flex-1"
-                  disabled={createInventoryMutation.isPending || updateInventoryMutation.isPending}
-                >
-                  {createInventoryMutation.isPending || updateInventoryMutation.isPending 
-                    ? 'Saving...' 
-                    : editingInventory ? 'Update Stock' : 'Add Stock'
-                  }
-                </Button>
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  onClick={() => {
-                    setInventoryDialogOpen(false);
-                    setEditingInventory(null);
-                    reset();
-                  }}
-                >
-                  Cancel
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -324,7 +256,7 @@ export default function InventoryPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {new Set(inventory.map(inv => inv.itemId)).size}
+              {new Set(dateFilteredInventory.map(inv => inv.itemId)).size}
             </div>
           </CardContent>
         </Card>
@@ -391,10 +323,10 @@ export default function InventoryPage() {
         <CardContent>
           {currentFilteredInventory.length === 0 ? (
             <div className="text-center py-8">
-              <Warehouse className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">No inventory found</h3>
-              <p className="mt-1 text-sm text-gray-500">
-                {inventory.length === 0 ? 'Get started by adding your first stock item.' : 'Try adjusting your search or filters.'}
+              <Warehouse className="mx-auto h-12 w-12 text-muted-foreground" />
+              <h3 className="mt-2 text-sm font-semibold text-foreground dark:text-white">No inventory found</h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {dateFilteredInventory.length === 0 ? 'Get started by adding your first stock item.' : 'Try adjusting your search or filters.'}
               </p>
             </div>
           ) : (
@@ -407,6 +339,8 @@ export default function InventoryPage() {
                     <TableHead>Batch/Location</TableHead>
                     <TableHead>Quantity</TableHead>
                     <TableHead>Available</TableHead>
+                    <TableHead>Cost Price</TableHead>
+                    <TableHead>Selling Price</TableHead>
                     <TableHead>Purchase Date</TableHead>
                     <TableHead>Expiry Date</TableHead>
                     <TableHead></TableHead>
@@ -433,6 +367,8 @@ export default function InventoryPage() {
                       </TableCell>
                       <TableCell>{parseFloat(inv.quantity).toFixed(2)} {inv.item.unit || 'pcs'}</TableCell>
                       <TableCell>{parseFloat(inv.availableQuantity).toFixed(2)} {inv.item.unit || 'pcs'}</TableCell>
+                      <TableCell>${parseFloat(inv.costPrice).toFixed(2)}</TableCell>
+                      <TableCell>${parseFloat(inv.sellingPrice).toFixed(2)}</TableCell>
                       <TableCell>{formatDate(inv.purchaseDate)}</TableCell>
                       <TableCell>
                         {inv.expiryDate ? formatDate(inv.expiryDate) : '-'}
@@ -446,10 +382,6 @@ export default function InventoryPage() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleEdit(inv)}>
-                              <Edit className="mr-2 h-4 w-4" />
-                              Edit
-                            </DropdownMenuItem>
                             <DropdownMenuItem 
                               onClick={() => handleDelete(inv.id)}
                               className="text-red-600"
