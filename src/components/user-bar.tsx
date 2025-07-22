@@ -16,8 +16,6 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 
 export default function UserBar() {
   const router = useRouter()
-  // adjust this destructuring to whatever useSession actually returns —
-  // often it’s either { data: session, isLoading } or { session, isLoading }.
   const { data: session, isPending } = useSession()
 
   if (isPending || !session) return null
@@ -37,22 +35,29 @@ export default function UserBar() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="flex items-center gap-2 rounded px-2 py-1 hover:bg-muted">
-          <Avatar className="h-8 w-8">
+        <button className="flex items-center gap-3 w-full rounded-lg px-3 py-2 hover:bg-muted transition-colors">
+          <Avatar className="h-8 w-8 flex-shrink-0">
             {user.image ? (
               <AvatarImage src={user.image} alt={user.name ?? "Avatar"} />
             ) : (
-              <AvatarFallback>{(user.name ?? user.email)[0]}</AvatarFallback>
+              <AvatarFallback className="text-xs">
+                {(user.name ?? user.email)[0]?.toUpperCase()}
+              </AvatarFallback>
             )}
           </Avatar>
-          <span className="text-sm font-medium">
-            {user.name ?? user.email}
-          </span>
+          <div className="flex-1 min-w-0 text-left">
+            <div className="text-sm font-medium truncate">
+              {user.name || "User"}
+            </div>
+            <div className="text-xs text-muted-foreground truncate">
+              {user.email}
+            </div>
+          </div>
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-48">
+      <DropdownMenuContent align="start" className="w-56">
         <DropdownMenuLabel className="space-y-0.5 pb-2">
-          <div className="text-sm">{user.name}</div>
+          <div className="text-sm font-medium">{user.name || "User"}</div>
           <div className="text-xs text-muted-foreground">{user.email}</div>
         </DropdownMenuLabel>
         <DropdownMenuItem onClick={handleSignOut}>

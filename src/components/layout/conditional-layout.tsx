@@ -17,6 +17,7 @@ import {
   DollarSign
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import UserBar from "@/components/user-bar";
 
 interface ConditionalLayoutProps {
   children: React.ReactNode;
@@ -112,9 +113,14 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
           </Link>
         </div>
         
-        <nav className="px-4 pb-4 flex-1 overflow-y-auto">
+        <nav className="px-4 flex-1 overflow-y-auto">
           <NavLinks />
         </nav>
+
+        {/* User Profile Section - Desktop */}
+        <div className="p-4 border-t border-border flex-shrink-0">
+          <UserBar />
+        </div>
       </aside>
 
       {/* Sidebar Navigation - Mobile */}
@@ -132,9 +138,14 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
           </Link>
         </div>
         
-        <nav className="px-4 pb-4 flex-1 overflow-y-auto">
+        <nav className="px-4 flex-1 overflow-y-auto">
           <NavLinks />
         </nav>
+
+        {/* User Profile Section - Mobile */}
+        <div className="p-4 border-t border-border flex-shrink-0">
+          <UserBar />
+        </div>
       </aside>
 
       {/* Main Content */}
