@@ -239,15 +239,15 @@ export default function BillingPage() {
           <Select value={dateFilter} onValueChange={(value: any) => setDateFilter(value)}>
             <SelectTrigger className="w-[140px]">
               <SelectValue placeholder="Select period" />
-            </SelectTrigger>
-            <SelectContent>
+                      </SelectTrigger>
+                      <SelectContent>
               <SelectItem value="all">Till Now</SelectItem>
               <SelectItem value="today">Today</SelectItem>
               <SelectItem value="week">This Week</SelectItem>
               <SelectItem value="month">This Month</SelectItem>
               <SelectItem value="custom">Custom Range</SelectItem>
-            </SelectContent>
-          </Select>
+                      </SelectContent>
+                    </Select>
 
           {dateFilter === 'custom' && (
             <div className="flex items-center gap-2">
@@ -304,13 +304,13 @@ export default function BillingPage() {
                   />
                 </PopoverContent>
               </Popover>
-            </div>
+                        </div>
           )}
 
           {dateFilter !== 'all' && (
-            <Button
-              variant="ghost"
-              size="sm"
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
               onClick={() => {
                 setDateFilter('all');
                 setCustomDateRange({ from: undefined, to: undefined });
@@ -318,18 +318,18 @@ export default function BillingPage() {
               className="text-muted-foreground hover:text-foreground"
             >
               Clear
-            </Button>
-          )}
+                      </Button>
+              )}
 
-          <Button 
+              <Button 
             className="w-full sm:w-auto"
             onClick={() => router.push('/billing/new')}
-          >
-            <Plus className="mr-2 h-4 w-4" />
+              >
+                <Plus className="mr-2 h-4 w-4" />
             Create New Bill
-          </Button>
+              </Button>
         </div>
-      </div>
+                </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
@@ -361,7 +361,7 @@ export default function BillingPage() {
           <CardContent>
             <div className="text-2xl font-bold">
               ${getFilteredBills().reduce((sum, bill) => sum + parseFloat(bill.total || 0), 0).toFixed(2)}
-            </div>
+                      </div>
           </CardContent>
         </Card>
 
@@ -373,11 +373,11 @@ export default function BillingPage() {
           <CardContent>
             <div className="text-2xl font-bold">
               {getFilteredBills().filter(bill => bill.status === 'paid').length}
-            </div>
+                      </div>
           </CardContent>
         </Card>
-      </div>
-
+                    </div>
+                    
       {/* Bills Table */}
       <Card>
         <CardHeader>
@@ -423,7 +423,7 @@ export default function BillingPage() {
                                 <span className="font-medium">
                                   {item.inventory?.item?.name || 'Unknown Item'}
                                 </span>
-                              </div>
+                    </div>
                             ))
                           ) : (
                             <span className="text-muted-foreground text-sm">No items</span>
@@ -431,15 +431,15 @@ export default function BillingPage() {
                           {Array.isArray(bill.items) && bill.items.length > 2 && (
                             <div className="text-xs text-muted-foreground">
                               +{bill.items.length - 2} more items
-                            </div>
+                  </div>
                           )}
-                        </div>
+                </div>
                       </TableCell>
                       <TableCell>
                         {Array.isArray(bill.items) && bill.items.length > 0 ? (
                           <div className="text-sm">
                             {bill.items.reduce((total: number, item: any) => total + parseFloat(item.quantity), 0).toFixed(2)}
-                          </div>
+              </div>
                         ) : (
                           <span className="text-muted-foreground text-sm">0</span>
                         )}
@@ -499,7 +499,7 @@ export default function BillingPage() {
                 )}
               </TableBody>
             </Table>
-          </div>
+              </div>
                  </CardContent>
        </Card>
 
@@ -507,142 +507,142 @@ export default function BillingPage() {
        <Dialog open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen}>
          <DialogContent className="w-[95vw] max-w-6xl overflow-visible">
            {selectedBill && (
-             <>
-               <DialogHeader>
-                 <div className="flex justify-between items-center">
-                   <DialogTitle className="text-2xl font-semibold">
+              <>
+                <DialogHeader>
+                  <div className="flex justify-between items-center">
+                    <DialogTitle className="text-2xl font-semibold">
                      Invoice #{selectedBill.invoiceNumber}
-                   </DialogTitle>
+                    </DialogTitle>
                    <div className="flex items-center gap-2">
                      <span className="text-sm text-muted-foreground">Status:</span>
                      {getStatusBadge(selectedBill.status)}
-                   </div>
-                 </div>
+                    </div>
+                  </div>
                  <DialogDescription className="flex justify-between items-center">
                    <span>Created on {new Date(selectedBill.createdAt).toLocaleDateString()}</span>
                    <span className="text-sm text-muted-foreground">
                      Last updated: {new Date(selectedBill.updatedAt).toLocaleDateString()}
-                   </span>
-                 </DialogDescription>
-               </DialogHeader>
-               
-               <div className="space-y-6 py-4">
-                 {/* Client Info */}
+                    </span>
+                  </DialogDescription>
+                </DialogHeader>
+                
+                <div className="space-y-6 py-4">
+                  {/* Client Info */}
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 border-b pb-4">
-                   <div>
+                    <div>
                      <h3 className="text-sm font-medium text-muted-foreground mb-2">Bill To:</h3>
-                     <div className="space-y-1">
+                      <div className="space-y-1">
                        <p className="font-medium text-base">{selectedBill.client?.name || 'Unknown Client'}</p>
                        {selectedBill.client?.email && <p className="text-sm">{selectedBill.client.email}</p>}
                        {selectedBill.client?.phone && <p className="text-sm">{selectedBill.client.phone}</p>}
                        {selectedBill.client?.address && <p className="text-sm">{selectedBill.client.address}</p>}
-                     </div>
-                   </div>
-                   <div className="text-right">
-                     <div className="space-y-2">
-                       <div className="flex justify-end gap-3">
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="space-y-2">
+                        <div className="flex justify-end gap-3">
                          <span className="text-muted-foreground text-sm">Invoice Date:</span>
                          <span className="font-medium">{new Date(selectedBill.billDate).toLocaleDateString()}</span>
-                       </div>
+                        </div>
                        {selectedBill.dueDate && (
-                         <div className="flex justify-end gap-3">
+                          <div className="flex justify-end gap-3">
                            <span className="text-muted-foreground text-sm">Due Date:</span>
                            <span className="font-medium">{new Date(selectedBill.dueDate).toLocaleDateString()}</span>
-                         </div>
-                       )}
-                       <div className="flex justify-end gap-3 pt-2">
+                          </div>
+                        )}
+                        <div className="flex justify-end gap-3 pt-2">
                          <span className="text-muted-foreground text-sm">Total:</span>
                          <span className="font-bold text-lg">${parseFloat(selectedBill.total || 0).toFixed(2)}</span>
-                       </div>
-                     </div>
-                   </div>
-                 </div>
-                 
-                 {/* Items Table */}
-                 <div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Items Table */}
+                  <div>
                    <h3 className="text-sm font-medium mb-3">Items</h3>
-                   <div className="border rounded-md overflow-hidden">
-                     <Table>
-                       <TableHeader>
-                         <TableRow>
-                           <TableHead>Item</TableHead>
-                           <TableHead className="text-right">Qty</TableHead>
-                           <TableHead className="text-right">Price</TableHead>
-                           <TableHead className="text-right">Total</TableHead>
-                         </TableRow>
-                       </TableHeader>
-                       <TableBody>
+                    <div className="border rounded-md overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Item</TableHead>
+                            <TableHead className="text-right">Qty</TableHead>
+                            <TableHead className="text-right">Price</TableHead>
+                            <TableHead className="text-right">Total</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
                          {Array.isArray(selectedBill.items) && selectedBill.items.length > 0 ? (
                            selectedBill.items.map((item: any) => (
-                             <TableRow key={item.id}>
-                               <TableCell>{item.inventory?.item?.name || 'Unknown Item'}</TableCell>
-                               <TableCell className="text-right">{parseFloat(item.quantity).toFixed(2)}</TableCell>
-                               <TableCell className="text-right">${parseFloat(item.sellingPrice).toFixed(2)}</TableCell>
-                               <TableCell className="text-right">${parseFloat(item.total).toFixed(2)}</TableCell>
-                             </TableRow>
-                           ))
-                         ) : (
-                           <TableRow>
+                              <TableRow key={item.id}>
+                                <TableCell>{item.inventory?.item?.name || 'Unknown Item'}</TableCell>
+                                <TableCell className="text-right">{parseFloat(item.quantity).toFixed(2)}</TableCell>
+                                <TableCell className="text-right">${parseFloat(item.sellingPrice).toFixed(2)}</TableCell>
+                                <TableCell className="text-right">${parseFloat(item.total).toFixed(2)}</TableCell>
+                              </TableRow>
+                            ))
+                          ) : (
+                            <TableRow>
                              <TableCell colSpan={4} className="text-center py-4 text-muted-foreground">
-                               No items found
-                             </TableCell>
-                           </TableRow>
-                         )}
-                       </TableBody>
-                     </Table>
-                   </div>
-                 </div>
-                 
-                 {/* Summary */}
-                 <div className="flex justify-end">
-                   <div className="w-64 space-y-2 border-t pt-3">
-                     <div className="flex justify-between">
+                                No items found
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                  
+                  {/* Summary */}
+                  <div className="flex justify-end">
+                    <div className="w-64 space-y-2 border-t pt-3">
+                      <div className="flex justify-between">
                        <span className="text-muted-foreground">Subtotal:</span>
                        <span>${parseFloat(selectedBill.subtotal || 0).toFixed(2)}</span>
-                     </div>
+                      </div>
                      {parseFloat(selectedBill.extraChargesTotal || 0) > 0 && (
-                       <div className="flex justify-between">
+                        <div className="flex justify-between">
                          <span className="text-muted-foreground">Extra Charges:</span>
                          <span>${parseFloat(selectedBill.extraChargesTotal).toFixed(2)}</span>
-                       </div>
-                     )}
-                     <div className="flex justify-between">
+                        </div>
+                      )}
+                      <div className="flex justify-between">
                        <span className="text-muted-foreground">Tax ({parseFloat(selectedBill.taxRate || 0)}%):</span>
                        <span>${parseFloat(selectedBill.tax || 0).toFixed(2)}</span>
-                     </div>
-                     <div className="flex justify-between font-bold pt-2 border-t">
-                       <span>Total:</span>
+                      </div>
+                      <div className="flex justify-between font-bold pt-2 border-t">
+                        <span>Total:</span>
                        <span>${parseFloat(selectedBill.total || 0).toFixed(2)}</span>
-                     </div>
-                   </div>
-                 </div>
-                 
-                 {/* Notes */}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Notes */}
                  {selectedBill.notes && (
-                   <div>
+                    <div>
                      <h3 className="text-sm font-medium mb-2">Notes</h3>
                      <p className="text-muted-foreground text-sm bg-muted/50 p-3 rounded-md">{selectedBill.notes}</p>
-                   </div>
-                 )}
-                 
-                 {/* Actions */}
-                 <div className="flex justify-end gap-3 pt-4 border-t">
-                   <Button 
-                     variant="outline" 
+                    </div>
+                  )}
+                  
+                  {/* Actions */}
+                  <div className="flex justify-end gap-3 pt-4 border-t">
+                    <Button 
+                      variant="outline" 
                      onClick={() => setIsDetailsDialogOpen(false)}
-                   >
-                     Close
-                   </Button>
-                   <Button 
-                     variant="outline" 
-                     onClick={() => {
+                    >
+                      Close
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => {
                        setIsDetailsDialogOpen(false);
                        handleEditBill(selectedBill);
-                     }}
-                   >
-                     <Edit className="mr-2 h-4 w-4" />
-                     Edit
-                   </Button>
+                      }}
+                    >
+                      <Edit className="mr-2 h-4 w-4" />
+                      Edit
+                    </Button>
                    <Button 
                      variant="outline" 
                      onClick={() => handleDownloadInvoice(selectedBill)}
@@ -651,33 +651,33 @@ export default function BillingPage() {
                      <Download className="mr-2 h-4 w-4" />
                      {downloadingInvoice === selectedBill?.id ? 'Downloading...' : 'Download Invoice'}
                    </Button>
-                   <DropdownMenu>
-                     <DropdownMenuTrigger asChild>
-                       <Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button>
                          {selectedBill.status === 'due' ? 'Mark as Paid' : 'Update Status'}
-                       </Button>
-                     </DropdownMenuTrigger>
-                     <DropdownMenuContent align="end">
-                       <DropdownMenuItem onClick={() => {
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => {
                          handleStatusUpdate(selectedBill.id, 'due');
                          setSelectedBill({...selectedBill, status: 'due'});
-                       }}>
-                         Mark as Due
-                       </DropdownMenuItem>
-                       <DropdownMenuItem onClick={() => {
+                        }}>
+                          Mark as Due
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => {
                          handleStatusUpdate(selectedBill.id, 'paid');
                          setSelectedBill({...selectedBill, status: 'paid'});
-                       }}>
-                         Mark as Paid
-                       </DropdownMenuItem>
-                     </DropdownMenuContent>
-                   </DropdownMenu>
-                 </div>
-               </div>
-             </>
-           )}
-         </DialogContent>
-       </Dialog>
-     </div>
-   );
- } 
+                        }}>
+                          Mark as Paid
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </div>
+              </>
+            )}
+          </DialogContent>
+        </Dialog>
+    </div>
+  );
+} 

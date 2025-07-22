@@ -20,14 +20,13 @@ const localPurchaseBillSchema = z.object({
   supplierId: z.string(),
   billNumber: z.string().min(1, 'Bill number is required'),
   billDate: z.string().min(1, 'Bill date is required'),
+  batchNumber: z.string(),
+  taxRate: z.number().min(0).max(100),
   items: z.array(z.object({
     itemId: z.string().min(1, 'Item is required'),
     quantity: z.number().min(0.01, 'Quantity must be positive'),
     costPrice: z.number().min(0, 'Cost price must be positive'),
-    batchNumber: z.string().optional(),
-    expiryDate: z.string().optional(),
   })).min(1, 'At least one item is required'),
-  taxRate: z.number().min(0).max(100),
   extraCharges: z.array(z.object({
     name: z.string().min(1, 'Charge name is required'),
     amount: z.number().min(0, 'Amount must be positive'),
@@ -78,15 +77,17 @@ export default function CreatePurchaseBillPage() {
       supplierId: 'none',
       billNumber: generateBillNumber(),
       billDate: new Date().toISOString().split('T')[0],
+      batchNumber: generateBatchNumber(new Date().toISOString().split('T')[0]),
+      taxRate: 0,
       items: [{ 
         itemId: '', 
         quantity: 0, 
         costPrice: 0, 
-        batchNumber: generateBatchNumber(new Date().toISOString().split('T')[0]), 
-        expiryDate: '' 
       }],
-      taxRate: 0,
-      extraCharges: [],
+      extraCharges: [{
+        name: 'Tax',
+        amount: 0
+      }],
       notes: '',
       status: 'pending'
     }
@@ -104,19 +105,18 @@ export default function CreatePurchaseBillPage() {
 
   // Watch form values for calculations
   const watchedItems = watch('items');
-  const watchedTaxRate = watch('taxRate');
+  const watchedBatchNumber = watch('batchNumber');
   const watchedExtraCharges = watch('extraCharges');
   const watchedBillDate = watch('billDate');
+  const watchedTaxRate = watch('taxRate'); // Added for tax rate
 
   // Update batch numbers when bill date changes
   useEffect(() => {
     if (watchedBillDate) {
       const batchNumber = generateBatchNumber(watchedBillDate);
-      watchedItems.forEach((_, index) => {
-        setValue(`items.${index}.batchNumber`, batchNumber);
-      });
+      setValue('batchNumber', batchNumber);
     }
-  }, [watchedBillDate, setValue, watchedItems]);
+  }, [watchedBillDate, setValue]);
 
   // Fetch data
   useEffect(() => {
@@ -154,22 +154,22 @@ export default function CreatePurchaseBillPage() {
     }, 0);
   };
 
-  const calculateTax = () => {
-    const subtotal = calculateSubtotal();
-    return (subtotal * watchedTaxRate) / 100;
-  };
-
   const calculateExtraChargesTotal = () => {
     return watchedExtraCharges.reduce((sum, charge) => {
       return sum + charge.amount;
     }, 0);
   };
 
+  const calculateTax = () => {
+    const subtotal = calculateSubtotal();
+    return (subtotal * (watchedTaxRate / 100));
+  };
+
   const calculateTotal = () => {
     const subtotal = calculateSubtotal();
-    const tax = calculateTax();
     const extraChargesTotal = calculateExtraChargesTotal();
-    return subtotal + tax + extraChargesTotal;
+    const taxAmount = calculateTax();
+    return subtotal + extraChargesTotal + taxAmount;
   };
 
   // Handle item selection to auto-fill cost price
@@ -187,8 +187,6 @@ export default function CreatePurchaseBillPage() {
       itemId: '',
       quantity: 0,
       costPrice: 0,
-      batchNumber: batchNumber,
-      expiryDate: ''
     });
   };
 
@@ -280,14 +278,14 @@ export default function CreatePurchaseBillPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <Label htmlFor="supplierId">Supplier</Label>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="w-full">
+                <Label htmlFor="supplierId" className="mb-2 block">Supplier</Label>
                 <Select 
                   value={watch('supplierId')} 
                   onValueChange={(value) => setValue('supplierId', value)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select supplier (optional)" />
                   </SelectTrigger>
                   <SelectContent>
@@ -301,43 +299,40 @@ export default function CreatePurchaseBillPage() {
                 </Select>
               </div>
 
-              <div>
-                <Label htmlFor="billNumber">Bill Number (Auto-generated)</Label>
+              <div className="w-full">
+                <Label htmlFor="billNumber" className="mb-2 block">Bill Number</Label>
                 <Input
                   id="billNumber"
                   {...register('billNumber')}
                   placeholder="Enter bill number"
+                  className="w-full"
                 />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Auto-generated but can be edited
-                </p>
                 {errors.billNumber && (
                   <p className="text-sm text-red-500 mt-1">{errors.billNumber.message}</p>
                 )}
               </div>
 
-              <div>
-                <Label htmlFor="billDate">Bill Date</Label>
+              <div className="w-full">
+                <Label htmlFor="billDate" className="mb-2 block">Bill Date</Label>
                 <Input
                   id="billDate"
                   type="date"
                   {...register('billDate')}
+                  className="w-full"
                 />
                 {errors.billDate && (
                   <p className="text-sm text-red-500 mt-1">{errors.billDate.message}</p>
                 )}
               </div>
-            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="taxRate">Tax Rate (%)</Label>
+              <div className="w-full">
+                <Label htmlFor="batchNumber" className="mb-2 block">Batch Number</Label>
                 <Input
-                  id="taxRate"
-                  type="number"
-                  step="0.01"
-                  {...register('taxRate', { valueAsNumber: true })}
-                  placeholder="0"
+                  id="batchNumber"
+                  {...register('batchNumber')}
+                  placeholder="Auto-generated from bill date"
+                  readOnly
+                  className="w-full"
                 />
               </div>
             </div>
@@ -355,10 +350,10 @@ export default function CreatePurchaseBillPage() {
           <CardContent>
             <div className="space-y-4">
               {itemFields.map((field, index) => (
-                <div key={field.id} className="border rounded-lg p-4">
-                  <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
-                    <div className="md:col-span-2">
-                      <Label>Item</Label>
+                <div key={field.id} className="group relative border rounded-lg p-4">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                    <div>
+                      <Label className="mb-2 block">Item</Label>
                       <Select 
                         value={watch(`items.${index}.itemId`)} 
                         onValueChange={(value) => {
@@ -377,70 +372,55 @@ export default function CreatePurchaseBillPage() {
                           ))}
                         </SelectContent>
                       </Select>
-                      {errors.items?.[index]?.itemId && (
-                        <p className="text-sm text-red-500 mt-1">{errors.items[index]?.itemId?.message}</p>
-                      )}
                     </div>
 
                     <div>
-                      <Label>Quantity</Label>
+                      <Label className="mb-2 block">Quantity</Label>
                       <Input
                         type="number"
                         step="0.01"
                         {...register(`items.${index}.quantity`, { valueAsNumber: true })}
                         placeholder="0"
                       />
-                      {errors.items?.[index]?.quantity && (
-                        <p className="text-sm text-red-500 mt-1">{errors.items[index]?.quantity?.message}</p>
-                      )}
                     </div>
 
                     <div>
-                      <Label>Cost Price</Label>
+                      <Label className="mb-2 block">Cost Price</Label>
                       <Input
                         type="number"
                         step="0.01"
                         {...register(`items.${index}.costPrice`, { valueAsNumber: true })}
                         placeholder="0.00"
                       />
-                      {errors.items?.[index]?.costPrice && (
-                        <p className="text-sm text-red-500 mt-1">{errors.items[index]?.costPrice?.message}</p>
+                    </div>
+
+                    <div className="flex items-end justify-center h-full">
+                      {itemFields.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeItem(index)}
+                          className="h-10 w-10 p-0 text-muted-foreground hover:text-red-600"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       )}
-                    </div>
-
-                    <div>
-                      <Label>Batch Number (Auto-generated)</Label>
-                      <Input
-                        {...register(`items.${index}.batchNumber`)}
-                        placeholder="Auto-generated from bill date"
-                        readOnly
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Generated from bill date: {watchedBillDate ? generateBatchNumber(watchedBillDate) : ''}
-                      </p>
-                    </div>
-
-                    <div>
-                      <Label>Expiry Date</Label>
-                      <Input
-                        type="date"
-                        {...register(`items.${index}.expiryDate`)}
-                      />
                     </div>
                   </div>
 
-                  {itemFields.length > 1 && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => removeItem(index)}
-                      className="mt-2"
-                    >
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Remove Item
-                    </Button>
-                  )}
+                  {/* Error messages below the input row */}
+                  <div className="mt-2 space-y-1">
+                    {errors.items?.[index]?.itemId && (
+                      <p className="text-sm text-red-500">{errors.items[index]?.itemId?.message}</p>
+                    )}
+                    {errors.items?.[index]?.quantity && (
+                      <p className="text-sm text-red-500">{errors.items[index]?.quantity?.message}</p>
+                    )}
+                    {errors.items?.[index]?.costPrice && (
+                      <p className="text-sm text-red-500">{errors.items[index]?.costPrice?.message}</p>
+                    )}
+                  </div>
                 </div>
               ))}
 
@@ -467,34 +447,54 @@ export default function CreatePurchaseBillPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
+              {/* Tax row (always present) */}
+              <div className="flex items-center gap-2 py-2">
+                <span className="font-medium">Tax</span>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min={0}
+                  value={watchedTaxRate}
+                  onChange={e => setValue('taxRate', parseFloat(e.target.value) || 0)}
+                  className="w-20 h-8 px-2 text-sm"
+                  placeholder="0"
+                />
+                <span className="text-sm">%</span>
+                <span className="ml-auto">${calculateTax().toFixed(2)}</span>
+              </div>
+              {/* Other extra charges */}
               {extraChargeFields.map((field, index) => (
-                <div key={field.id} className="flex gap-4">
-                  <div className="flex-1">
-                    <Label>Charge Name</Label>
-                    <Input
-                      {...register(`extraCharges.${index}.name`)}
-                      placeholder="e.g., Shipping, Handling"
-                    />
+                field.name !== 'Tax' && (
+                  <div key={field.id} className="flex gap-4">
+                    <div className="flex-1">
+                      <Label className="mb-2 block">Charge Name</Label>
+                      <Input
+                        {...register(`extraCharges.${index}.name`)}
+                        placeholder="e.g., Shipping, Handling"
+                      />
+                    </div>
+                    <div className="w-32">
+                      <Label className="mb-2 block">Amount</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        {...register(`extraCharges.${index}.amount`, { valueAsNumber: true })}
+                        placeholder="0.00"
+                      />
+                    </div>
+                    <div className="flex items-end">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => removeExtraCharge(index)}
+                        className="h-10 w-10 p-0"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
-                  <div className="w-32">
-                    <Label>Amount</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      {...register(`extraCharges.${index}.amount`, { valueAsNumber: true })}
-                      placeholder="0.00"
-                    />
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => removeExtraCharge(index)}
-                    className="mt-6"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
+                )
               ))}
 
               <Button
@@ -524,7 +524,7 @@ export default function CreatePurchaseBillPage() {
                 <span>${calculateSubtotal().toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
-                <span>Tax ({watchedTaxRate}%):</span>
+                <span>Tax:</span>
                 <span>${calculateTax().toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
