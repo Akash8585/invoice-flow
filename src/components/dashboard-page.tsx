@@ -411,10 +411,10 @@ export default function DashboardPage() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Total Clients</p>
-                  <p className="text-xl sm:text-2xl font-bold">{stats.totalClients}</p>
+                  <p className="text-sm text-muted-foreground">Due Bills</p>
+                  <p className="text-xl sm:text-2xl font-bold text-yellow-600">{filteredBills.filter(bill => bill.status === 'due').length}</p>
                 </div>
-                <Users className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground" />
+                <FileText className="h-6 w-6 sm:h-8 sm:w-8 text-yellow-500" />
               </div>
             </CardContent>
           </Card>
@@ -423,10 +423,10 @@ export default function DashboardPage() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Avg Bill Amount</p>
-                  <p className="text-xl sm:text-2xl font-bold">{formatCurrency(averageBillAmount)}</p>
+                  <p className="text-sm text-muted-foreground">Total Clients</p>
+                  <p className="text-xl sm:text-2xl font-bold">{stats.totalClients}</p>
                 </div>
-                <DollarSign className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground" />
+                <Users className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground" />
               </div>
             </CardContent>
           </Card>

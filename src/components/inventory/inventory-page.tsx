@@ -342,7 +342,7 @@ export default function InventoryPage() {
                     <TableHead>Cost Price</TableHead>
                     <TableHead>Selling Price</TableHead>
                     <TableHead>Purchase Date</TableHead>
-                    <TableHead>Expiry Date</TableHead>
+                    <TableHead>Total</TableHead>
                     <TableHead></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -370,9 +370,7 @@ export default function InventoryPage() {
                       <TableCell>${parseFloat(inv.costPrice).toFixed(2)}</TableCell>
                       <TableCell>${parseFloat(inv.sellingPrice).toFixed(2)}</TableCell>
                       <TableCell>{formatDate(inv.purchaseDate)}</TableCell>
-                      <TableCell>
-                        {inv.expiryDate ? formatDate(inv.expiryDate) : '-'}
-                      </TableCell>
+                      <TableCell>${(parseFloat(inv.costPrice) * parseFloat(inv.quantity)).toFixed(2)}</TableCell>
                       <TableCell>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>

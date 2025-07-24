@@ -6,6 +6,7 @@ import { purchaseBillSchema } from '@/lib/schemas';
 import { eq } from 'drizzle-orm';
 import { suppliers } from '@/db/schema'; // Added missing import for suppliers
 import { sql } from 'drizzle-orm'; // Added missing import for sql
+import { items } from '@/db/schema'; // Added missing import for items
 
 export async function POST(request: NextRequest) {
   try {
@@ -71,6 +72,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Create inventory entries for each item
+    // Fetch selling prices for all items in one query
+    const itemIds = validatedData.items.map(item => item.itemId);
+    const itemsCatalog = await db.select({ id: items.id, sellingPrice: items.sellingPrice })
+      .from(items)
+      .where(items.id.in(itemIds));
+    const sellingPriceMap = Object.fromEntries(itemsCatalog.map(i => [i.id, i.sellingPrice]));
+
     const inventoryData = validatedData.items.map(item => ({
       userId: session.user.id,
       itemId: item.itemId,
@@ -80,7 +88,7 @@ export async function POST(request: NextRequest) {
       quantity: item.quantity.toString(),
       availableQuantity: item.quantity.toString(), // Initially all quantity is available
       costPrice: item.costPrice.toString(),
-      sellingPrice: item.costPrice.toString(), // Default to cost price, can be updated later
+      sellingPrice: sellingPriceMap[item.itemId]?.toString() ?? item.costPrice.toString(), // Fetch from items, fallback to costPrice
       purchaseDate: new Date(validatedData.billDate),
       expiryDate: item.expiryDate ? new Date(item.expiryDate) : null,
       location: validatedData.location || null,
