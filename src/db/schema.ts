@@ -237,3 +237,16 @@ export const expenses = pgTable("expenses", {
 	createdAt: timestamp('created_at').$defaultFn(() => new Date()).notNull(),
 	updatedAt: timestamp('updated_at').$defaultFn(() => new Date()).notNull()
 });
+
+// Business Profile table
+export const businessProfiles = pgTable("business_profiles", {
+	id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+	userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }).unique(),
+	businessName: text('business_name'),
+	phone: text('phone'),
+	email: text('email'),
+	address: text('address'),
+	logo: text('logo'), // Base64 encoded image or URL
+	createdAt: timestamp('created_at').$defaultFn(() => new Date()).notNull(),
+	updatedAt: timestamp('updated_at').$defaultFn(() => new Date()).notNull()
+});

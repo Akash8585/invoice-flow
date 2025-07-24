@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
-import { bills, billItems, billExtraCharges, clients, inventory, items } from '@/db/schema';
+import { bills, billItems, billExtraCharges, clients, inventory, items, businessProfiles, user } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { generateInvoicePDF } from '@/lib/invoice-pdf';
 
@@ -16,7 +16,6 @@ export async function GET(
         id: bills.id,
         invoiceNumber: bills.invoiceNumber,
         billDate: bills.billDate,
-
         subtotal: bills.subtotal,
         taxRate: bills.taxRate,
         tax: bills.tax,
@@ -26,6 +25,7 @@ export async function GET(
         status: bills.status,
         createdAt: bills.createdAt,
         updatedAt: bills.updatedAt,
+        userId: bills.userId,
         client: {
           id: clients.id,
           name: clients.name,
@@ -44,6 +44,19 @@ export async function GET(
     }
 
     const bill = billHeader[0];
+
+    // Fetch business profile for the user
+    const [businessProfile] = await db
+      .select({
+        businessName: businessProfiles.businessName,
+        phone: businessProfiles.phone,
+        email: businessProfiles.email,
+        address: businessProfiles.address,
+        logo: businessProfiles.logo,
+      })
+      .from(businessProfiles)
+      .where(eq(businessProfiles.userId, bill.userId))
+      .limit(1);
 
     // Get bill items with inventory information
     const billItemsResult = await db
@@ -93,7 +106,14 @@ export async function GET(
       extraChargesTotal: parseFloat(fullBill.extraChargesTotal),
       total: parseFloat(fullBill.total),
       notes: fullBill.notes ?? undefined,
-      status: fullBill.status
+      status: fullBill.status,
+      businessProfile: businessProfile ? {
+        businessName: businessProfile.businessName || undefined,
+        phone: businessProfile.phone || undefined,
+        email: businessProfile.email || undefined,
+        address: businessProfile.address || undefined,
+        logo: businessProfile.logo || undefined,
+      } : undefined
     };
 
     // Generate PDF
@@ -105,10 +125,12 @@ export async function GET(
       headers: {
         'Content-Type': 'application/pdf',
         'Content-Disposition': `attachment; filename="invoice-${fullBill.invoiceNumber}.pdf"`,
+        'Content-Length': pdfBuffer.length.toString(),
       },
     });
+
   } catch (error) {
-    console.error('Error generating invoice PDF:', error);
+    console.error('Download invoice API error:', error);
     return NextResponse.json(
       { error: 'Failed to generate invoice PDF' },
       { status: 500 }

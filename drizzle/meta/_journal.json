@@ -50,6 +50,13 @@
       "when": 1752934052156,
       "tag": "0006_unique_smasher",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1753368911142,
+      "tag": "0007_careless_lockjaw",
+      "breakpoints": true
     }
   ]
 }
