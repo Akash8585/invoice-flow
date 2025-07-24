@@ -4,6 +4,7 @@ import { db } from '@/db';
 import { purchaseBills, purchaseBillItems, purchaseBillExtraCharges, inventory, expenses } from '@/db/schema';
 import { purchaseBillSchema } from '@/lib/schemas';
 import { eq } from 'drizzle-orm';
+import { inArray } from 'drizzle-orm';
 import { suppliers } from '@/db/schema'; // Added missing import for suppliers
 import { sql } from 'drizzle-orm'; // Added missing import for sql
 import { items } from '@/db/schema'; // Added missing import for items
@@ -76,7 +77,7 @@ export async function POST(request: NextRequest) {
     const itemIds = validatedData.items.map(item => item.itemId);
     const itemsCatalog = await db.select({ id: items.id, sellingPrice: items.sellingPrice })
       .from(items)
-      .where(items.id.in(itemIds));
+      .where(inArray(items.id, itemIds));
     const sellingPriceMap = Object.fromEntries(itemsCatalog.map(i => [i.id, i.sellingPrice]));
 
     const inventoryData = validatedData.items.map(item => ({
