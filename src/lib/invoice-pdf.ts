@@ -38,246 +38,167 @@ export interface InvoiceData {
 export const generateInvoicePDF = (invoiceData: InvoiceData) => {
   const doc = new jsPDF();
   
-  // Modern color palette - Black and White with subtle grays
-  const primaryBlack = [0, 0, 0];
-  const lightGray = [245, 245, 245];
-  const mediumGray = [128, 128, 128];
-  const darkGray = [64, 64, 64];
+  // Clean color palette
+  const black = [0, 0, 0];
+  const gray = [128, 128, 128];
+  const lightGray = [240, 240, 240];
+  const green = [34, 197, 94];
   
-  // Company Header Section
-  doc.setFillColor(primaryBlack[0], primaryBlack[1], primaryBlack[2]);
-  doc.rect(0, 0, 210, 50, 'F');
-  
-  // Company Name (use business profile if available)
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(28);
-  doc.setFont('helvetica', 'bold');
-  const companyName = invoiceData.businessProfile?.businessName || 'INVOICEFLOW';
-  doc.text(companyName, 20, 25);
-  
-  // Invoice title on the right
-  doc.setFontSize(16);
+  // Business name at top left
+  doc.setTextColor(black[0], black[1], black[2]);
+  doc.setFontSize(24);
   doc.setFont('helvetica', 'normal');
-  doc.text('INVOICE', 170, 25);
+  const businessName = invoiceData.businessProfile?.businessName || 'HEALTHY FOOD';
+  doc.text(businessName, 20, 30);
   
-  // Business contact info in header (if available)
-  if (invoiceData.businessProfile) {
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'normal');
-    let headerY = 35;
-    
-    if (invoiceData.businessProfile.email) {
-      doc.text(invoiceData.businessProfile.email, 20, headerY);
-      headerY += 6;
-    }
-    
-    if (invoiceData.businessProfile.phone) {
-      doc.text(invoiceData.businessProfile.phone, 20, headerY);
-    }
-    
-    // Business address on the right side of header
-    if (invoiceData.businessProfile.address) {
-      doc.setFontSize(8);
-      const addressLines = doc.splitTextToSize(invoiceData.businessProfile.address, 80);
-      doc.text(addressLines, 130, 35);
-    }
-  }
-  
-  // Reset text color to black
-  doc.setTextColor(primaryBlack[0], primaryBlack[1], primaryBlack[2]);
-  
-  // Invoice Information Section
-  doc.setFontSize(11);
-  doc.setFont('helvetica', 'bold');
-  doc.text('Invoice Details', 20, 70);
-  
-  // Invoice details box
-  doc.setDrawColor(lightGray[0], lightGray[1], lightGray[2]);
-  doc.setLineWidth(1);
-  doc.rect(20, 75, 85, 35);
-  
-  doc.setFontSize(9);
+  // Invoice number and date at top right
+  doc.setFontSize(14);
   doc.setFont('helvetica', 'normal');
-  doc.text(`Invoice #: ${invoiceData.invoiceNumber}`, 25, 85);
-  doc.text(`Issue Date: ${new Date(invoiceData.billDate).toLocaleDateString()}`, 25, 92);
-  if (invoiceData.dueDate) {
-    doc.text(`Due Date: ${new Date(invoiceData.dueDate).toLocaleDateString()}`, 25, 99);
-  }
+  doc.text(`Invoice No ${invoiceData.invoiceNumber}`, 210 - 20, 30, { align: 'right' });
+  doc.text(new Date(invoiceData.billDate).toLocaleDateString('en-GB'), 210 - 20, 45, { align: 'right' });
   
-  // Status badge
-  const statusColor = invoiceData.status === 'paid' ? [34, 197, 94] : [239, 68, 68];
-  doc.setFillColor(statusColor[0], statusColor[1], statusColor[2]);
-  doc.roundedRect(25, 102, 25, 6, 2, 2, 'F');
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'bold');
-  doc.text(invoiceData.status.toUpperCase(), 27, 106);
-  
-  // Reset text color
-  doc.setTextColor(primaryBlack[0], primaryBlack[1], primaryBlack[2]);
-  
-  // Bill To Section
-  doc.setFontSize(11);
-  doc.setFont('helvetica', 'bold');
-  doc.text('Bill To', 120, 70);
-  
-  // Client details box
-  doc.rect(120, 75, 70, 35);
-  
+  // Business contact info under business name
   doc.setFontSize(10);
-  doc.setFont('helvetica', 'bold');
-  doc.text(invoiceData.client.name, 125, 85);
+  doc.setTextColor(gray[0], gray[1], gray[2]);
+  let contactY = 45;
   
-  doc.setFontSize(9);
+  if (invoiceData.businessProfile?.email) {
+    doc.text(invoiceData.businessProfile.email, 20, contactY);
+    contactY += 12;
+  }
+  
+  if (invoiceData.businessProfile?.phone) {
+    doc.text(invoiceData.businessProfile.phone, 20, contactY);
+  }
+  
+  // "billed to:" label
+  doc.setTextColor(black[0], black[1], black[2]);
+  doc.setFontSize(12);
   doc.setFont('helvetica', 'normal');
-  let clientY = 92;
+  doc.text('billed to:', 20, 90);
   
-  if (invoiceData.client.email) {
-    doc.text(invoiceData.client.email, 125, clientY);
-    clientY += 6;
-  }
+  // Client information
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'normal');
+  let clientY = 110;
   
-  if (invoiceData.client.phone) {
-    doc.text(invoiceData.client.phone, 125, clientY);
-    clientY += 6;
-  }
+  // Client name
+  doc.text(invoiceData.client.name, 20, clientY);
+  clientY += 15;
   
+  // Client address (if available)
   if (invoiceData.client.address) {
-    const addressLines = doc.splitTextToSize(invoiceData.client.address, 60);
-    doc.text(addressLines, 125, clientY);
+    doc.setFontSize(11);
+    const addressLines = doc.splitTextToSize(invoiceData.client.address, 100);
+    doc.text(addressLines, 20, clientY);
+    clientY += addressLines.length * 12;
   }
   
-  // Items Table
-  const tableStartY = 130;
+  // Client phone (if available)
+  if (invoiceData.client.phone) {
+    doc.setFontSize(11);
+    doc.text(invoiceData.client.phone, 20, clientY);
+  }
   
-  // Table header
-  doc.setFontSize(11);
-  doc.setFont('helvetica', 'bold');
-  doc.text('Items & Services', 20, tableStartY - 5);
+  // Items table
+  const tableStartY = 180;
   
-  const tableData = invoiceData.items.map((item, index) => [
-    (index + 1).toString(),
+  // Prepare table data
+  const tableData = invoiceData.items.map((item) => [
     item.name,
-    item.quantity.toString(),
-    `$${item.price.toFixed(2)}`,
-    `$${item.total.toFixed(2)}`
+    `${item.quantity}`,
+    `$ ${item.price.toFixed(0)}`,
+    `$ ${item.total.toFixed(0)}`
   ]);
   
-  // Modern table design
+  // Create clean table
   autoTable(doc, {
     startY: tableStartY,
-    head: [['#', 'Description', 'Qty', 'Unit Price', 'Amount']],
+    head: [['Description', 'Quantity', 'Price', 'Amount']],
     body: tableData,
     theme: 'plain',
     headStyles: {
       fillColor: [240, 240, 240],
       textColor: [0, 0, 0],
-      fontStyle: 'bold',
-      fontSize: 10,
-      cellPadding: { top: 8, right: 8, bottom: 8, left: 8 },
-      lineWidth: { bottom: 1 },
-      lineColor: [200, 200, 200]
+      fontStyle: 'normal',
+      fontSize: 11,
+      cellPadding: { top: 8, right: 10, bottom: 8, left: 10 },
+      lineWidth: 0,
     },
     bodyStyles: {
-      fontSize: 9,
+      fontSize: 11,
       textColor: [0, 0, 0],
-      cellPadding: { top: 6, right: 8, bottom: 6, left: 8 },
-      lineWidth: { bottom: 0.5 },
-      lineColor: [230, 230, 230]
+      cellPadding: { top: 8, right: 10, bottom: 8, left: 10 },
+      lineWidth: 0,
     },
     columnStyles: {
-      0: { cellWidth: 15, halign: 'center' },
-      1: { cellWidth: 80 },
-      2: { cellWidth: 20, halign: 'center' },
-      3: { cellWidth: 30, halign: 'right' },
-      4: { cellWidth: 30, halign: 'right', fontStyle: 'bold' }
+      0: { cellWidth: 80 },
+      1: { cellWidth: 30, halign: 'center' },
+      2: { cellWidth: 30, halign: 'right' },
+      3: { cellWidth: 30, halign: 'right' }
     },
     margin: { left: 20, right: 20 },
     styles: {
-      lineColor: [230, 230, 230],
+      lineColor: [200, 200, 200],
       lineWidth: 0.5
     },
     alternateRowStyles: {
-      fillColor: [252, 252, 252]
+      fillColor: [255, 255, 255]
     }
   });
   
-  // Get final Y position after table
-  const finalY = (doc as any).lastAutoTable?.finalY + 20 || 200;
+  // Get table end position
+  const tableEndY = (doc as any).lastAutoTable?.finalY + 20 || 240;
   
-  // Summary Section
-  const summaryStartX = 120;
-  const summaryWidth = 70;
+  // Extra charges (if any)
+  let summaryY = tableEndY;
   
-  // Summary box
-  doc.setFillColor(lightGray[0], lightGray[1], lightGray[2]);
-  doc.rect(summaryStartX, finalY, summaryWidth, 45, 'F');
-  doc.setDrawColor(mediumGray[0], mediumGray[1], mediumGray[2]);
-  doc.rect(summaryStartX, finalY, summaryWidth, 45);
+  if (invoiceData.extraChargesTotal > 0) {
+    doc.setFontSize(11);
+    doc.setTextColor(black[0], black[1], black[2]);
+    doc.text('delivery Charges', 20, summaryY);
+    doc.text(`$ ${invoiceData.extraChargesTotal.toFixed(0)}`, 170, summaryY, { align: 'right' });
+    summaryY += 20;
+  }
   
+  // Grand Total
+  doc.setFontSize(16);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(black[0], black[1], black[2]);
+  doc.text('Grand Total:', 20, summaryY);
+  
+  // Total amount in green
+  doc.setTextColor(green[0], green[1], green[2]);
+  doc.setFontSize(20);
+  doc.setFont('helvetica', 'bold');
+  doc.text(`$ ${invoiceData.total.toFixed(2)}`, 170, summaryY, { align: 'right' });
+  
+  // Footer with contact info
+  const footerY = 260;
+  doc.setTextColor(black[0], black[1], black[2]);
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   
-  let summaryY = finalY + 10;
-  
-  // Subtotal
-  doc.text('Subtotal:', summaryStartX + 5, summaryY);
-  doc.text(`$${invoiceData.subtotal.toFixed(2)}`, summaryStartX + summaryWidth - 5, summaryY, { align: 'right' });
-  
-  // Extra charges
-  if (invoiceData.extraChargesTotal > 0) {
-    summaryY += 7;
-    doc.text('Extra Charges:', summaryStartX + 5, summaryY);
-    doc.text(`$${invoiceData.extraChargesTotal.toFixed(2)}`, summaryStartX + summaryWidth - 5, summaryY, { align: 'right' });
+  // Phone icon and number
+  if (invoiceData.businessProfile?.phone) {
+    doc.text(`📞 ${invoiceData.businessProfile.phone}`, 20, footerY);
   }
   
-  // Tax
-  summaryY += 7;
-  doc.text(`Tax (${invoiceData.taxRate}%):`, summaryStartX + 5, summaryY);
-  doc.text(`$${invoiceData.tax.toFixed(2)}`, summaryStartX + summaryWidth - 5, summaryY, { align: 'right' });
-  
-  // Total line
-  summaryY += 10;
-  doc.setLineWidth(1);
-  doc.line(summaryStartX + 5, summaryY - 3, summaryStartX + summaryWidth - 5, summaryY - 3);
-  
-  // Total amount
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(12);
-  doc.text('TOTAL:', summaryStartX + 5, summaryY);
-  doc.text(`$${invoiceData.total.toFixed(2)}`, summaryStartX + summaryWidth - 5, summaryY, { align: 'right' });
-  
-  // Notes Section
-  if (invoiceData.notes) {
-    const notesY = finalY + 55;
-    
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(10);
-    doc.text('Notes & Terms:', 20, notesY);
-    
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
-    doc.setTextColor(darkGray[0], darkGray[1], darkGray[2]);
-    
-    const notesLines = doc.splitTextToSize(invoiceData.notes, 170);
-    doc.text(notesLines, 20, notesY + 8);
+  // Email icon and address
+  if (invoiceData.businessProfile?.email) {
+    doc.text(`✉ ${invoiceData.businessProfile.email}`, 20, footerY + 12);
   }
   
-  // Footer
-  const footerY = 270;
+  // Signature area
+  doc.setTextColor(gray[0], gray[1], gray[2]);
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'italic');
+  doc.text('Signature', 150, footerY + 6);
   
-  // Footer line
-  doc.setDrawColor(lightGray[0], lightGray[1], lightGray[2]);
-  doc.setLineWidth(2);
-  doc.line(20, footerY, 190, footerY);
-  
-  // Footer text
-  doc.setTextColor(mediumGray[0], mediumGray[1], mediumGray[2]);
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'normal');
-  doc.text('Thank you for your business!', 105, footerY + 8, { align: 'center' });
-  const footerCompany = invoiceData.businessProfile?.businessName || 'InvoiceFlow';
-  doc.text(`Generated by ${footerCompany} - Professional Invoice Management System`, 105, footerY + 15, { align: 'center' });
+  // Signature line
+  doc.setDrawColor(gray[0], gray[1], gray[2]);
+  doc.setLineWidth(0.5);
+  doc.line(130, footerY + 15, 180, footerY + 15);
 
   // Return the PDF as a Uint8Array/Buffer
   return doc.output('arraybuffer');
