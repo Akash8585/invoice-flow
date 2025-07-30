@@ -133,8 +133,9 @@ export default function DashboardPage() {
     const uniqueClients = new Set(filteredBills.map(bill => bill.client.id));
     const totalClients = uniqueClients.size;
 
-    // Calculate stock items (total inventory items)
-    const stockItems = inventory.length;
+    // Calculate stock items (unique items from inventory, not bills)
+    const uniqueItems = new Set(inventory.map(inv => inv.item.name));
+    const stockItems = uniqueItems.size;
 
     return {
       totalRevenue,
@@ -188,9 +189,27 @@ export default function DashboardPage() {
     // Don't show percentage if change is 0 and there's no base data
     if (change === 0) {
       return (
-        <div className="flex items-center gap-1 text-muted-foreground">
-          <span className="text-sm font-medium">No change</span>
-        </div>
+        <p className="text-xs text-muted-foreground mt-1">Cost of items sold</p>
+      );
+    }
+    
+    const isPositive = change > 0;
+    const Icon = isPositive ? TrendingUp : TrendingDown;
+    const color = isPositive ? 'text-green-600' : 'text-red-600';
+    
+    return (
+      <div className={`flex items-center gap-1 ${color}`}>
+        <Icon className="h-4 w-4" />
+        <span className="text-sm font-medium">{Math.abs(change)}%</span>
+      </div>
+    );
+  };
+
+  const formatStockChange = (change: number) => {
+    // Don't show percentage if change is 0 and there's no base data
+    if (change === 0) {
+      return (
+        <p className="text-xs text-muted-foreground mt-1">Items in inventory</p>
       );
     }
     
@@ -374,7 +393,7 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="text-xl sm:text-2xl font-bold">{stats.stockItems}</div>
-              {formatChange(stats.stockChange)}
+              {formatStockChange(stats.stockChange)}
             </CardContent>
           </Card>
         </div>
@@ -423,10 +442,15 @@ export default function DashboardPage() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Total Clients</p>
-                  <p className="text-xl sm:text-2xl font-bold">{stats.totalClients}</p>
+                  <p className="text-sm text-muted-foreground">Total Due Amount</p>
+                  <p className="text-xl sm:text-2xl font-bold text-red-600">
+                    ${filteredBills
+                      .filter(bill => bill.status === 'due')
+                      .reduce((sum, bill) => sum + parseFloat(bill.total), 0)
+                      .toFixed(2)}
+                  </p>
                 </div>
-                <Users className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground" />
+                <DollarSign className="h-6 w-6 sm:h-8 sm:w-8 text-red-500" />
               </div>
             </CardContent>
           </Card>
