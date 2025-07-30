@@ -1,5 +1,4 @@
 import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 
 export interface BusinessProfile {
   businessName?: string;
@@ -37,180 +36,145 @@ export interface InvoiceData {
 
 export const generateInvoicePDF = (invoiceData: InvoiceData) => {
   const doc = new jsPDF();
-  const black: [number, number, number] = [17, 24, 39];
-  const gray: [number, number, number] = [107, 114, 128];
-  const lightGray: [number, number, number] = [243, 244, 246];
+  const black: [number, number, number] = [0, 0, 0];
+  const lightGray: [number, number, number] = [240, 240, 240];
 
-  const cursorY = 20;
-
-  // Logo (optional)
-  if (invoiceData.businessProfile?.logo) {
-    try {
-      doc.addImage(invoiceData.businessProfile.logo, 'PNG', 160, cursorY, 30, 30);
-    } catch (error) {
-      console.warn('Failed to add logo to PDF:', error);
-      // Continue without logo if there's an error
-    }
-  }
-
-  // Business Info
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(16);
-  doc.setTextColor(black[0], black[1], black[2]);
-  doc.text(invoiceData.businessProfile?.businessName || 'Your Business Name', 20, cursorY + 5);
-
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(gray[0], gray[1], gray[2]);
-  let businessLinesY = cursorY + 15;
-
-  const businessInfo = [
-    invoiceData.businessProfile?.email,
-    invoiceData.businessProfile?.phone,
-    invoiceData.businessProfile?.address,
-  ].filter(Boolean);
-
-  businessInfo.forEach((line) => {
-    const lines = doc.splitTextToSize(line!, 80);
-    doc.text(lines, 20, businessLinesY);
-    businessLinesY += lines.length * 6;
-  });
-
-  // Invoice Header
-  doc.setFontSize(22);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(black[0], black[1], black[2]);
-  doc.text(`Invoice`, 20, businessLinesY + 15);
-
-  // Invoice Info (right side)
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  const rightY = businessLinesY + 15;
-  doc.setTextColor(gray[0], gray[1], gray[2]);
-
-  const info = [
-    [`Invoice #:`, invoiceData.invoiceNumber],
-    [`Invoice Date:`, new Date(invoiceData.billDate).toLocaleDateString('en-GB')],
-    [`Due Date:`, invoiceData.dueDate || '—'],
-    [`Status:`, invoiceData.status.toUpperCase()],
-  ];
-
-  info.forEach(([label, value], index) => {
-    doc.text(label, 145, rightY + index * 7);
-    doc.setTextColor(black[0], black[1], black[2]);
-    doc.text(value.toString(), 170, rightY + index * 7);
-    doc.setTextColor(gray[0], gray[1], gray[2]);
-  });
-
-  // "Bill To" Section
-  const billToY = rightY + info.length * 7 + 15;
+  // Header with invoice number and date
   doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(black[0], black[1], black[2]);
-  doc.text('Bill To:', 20, billToY);
+  doc.text(`#INVOICE : ${invoiceData.invoiceNumber}`, 20, 20);
+  doc.text(`DATE: ${new Date(invoiceData.billDate).toLocaleDateString('en-GB')}`, 150, 20);
 
+  // Billed from section (left side)
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
-  doc.setTextColor(gray[0], gray[1], gray[2]);
-  const client = invoiceData.client;
-  let clientY = billToY + 6;
-  doc.text(client.name, 20, clientY); clientY += 6;
-  if (client.email) { doc.text(client.email, 20, clientY); clientY += 6; }
-  if (client.phone) { doc.text(client.phone, 20, clientY); clientY += 6; }
-  if (client.address) {
-    const addrLines = doc.splitTextToSize(client.address, 90);
-    doc.text(addrLines, 20, clientY);
-    clientY += addrLines.length * 6;
+  doc.text('Billed from :', 20, 40);
+  
+  doc.setFont('helvetica', 'bold');
+  doc.text(invoiceData.businessProfile?.businessName || 'YOUR BUSINESS NAME', 20, 50);
+  
+  doc.setFont('helvetica', 'normal');
+  let leftY = 60;
+  if (invoiceData.businessProfile?.email) {
+    doc.text(invoiceData.businessProfile.email, 20, leftY);
+    leftY += 10;
+  }
+  if (invoiceData.businessProfile?.phone) {
+    doc.text(invoiceData.businessProfile.phone, 20, leftY);
+    leftY += 10;
+  }
+  if (invoiceData.businessProfile?.address) {
+    const addressLines = doc.splitTextToSize(invoiceData.businessProfile.address, 80);
+    doc.text(addressLines, 20, leftY);
   }
 
-  // Items Table
-  const tableY = clientY + 10;
-  const tableData = invoiceData.items.map((item) => [
-    item.name,
-    item.quantity.toFixed(2),
-    `₹${item.price.toFixed(2)}`,
-    `₹${item.total.toFixed(2)}`
-  ]);
-
-  try {
-    autoTable(doc, {
-      startY: tableY,
-      head: [['Item', 'Qty', 'Unit Price', 'Total']],
-      body: tableData,
-      margin: { left: 20, right: 20 },
-      theme: 'grid',
-      headStyles: {
-        fillColor: lightGray,
-        textColor: black,
-        fontStyle: 'bold',
-      },
-      styles: {
-        font: 'helvetica',
-        fontSize: 10,
-      },
-      columnStyles: {
-        1: { halign: 'center' },
-        2: { halign: 'right' },
-        3: { halign: 'right', fontStyle: 'bold' }
-      }
-    });
-  } catch (error) {
-    console.error('Failed to generate table:', error);
-    // Fallback: simple text-based table
-    doc.setFontSize(10);
-    doc.setTextColor(black[0], black[1], black[2]);
-    doc.text('Items:', 20, tableY);
-    let itemY = tableY + 10;
-    invoiceData.items.forEach((item, index) => {
-      doc.text(`${index + 1}. ${item.name} - Qty: ${item.quantity} - Price: ₹${item.price.toFixed(2)} - Total: ₹${item.total.toFixed(2)}`, 20, itemY);
-      itemY += 8;
-    });
+  // Billed to section (right side)
+  doc.text('Billed to :', 120, 40);
+  
+  doc.setFont('helvetica', 'bold');
+  doc.text(invoiceData.client.name, 120, 50);
+  
+  doc.setFont('helvetica', 'normal');
+  let rightY = 60;
+  if (invoiceData.client.email) {
+    doc.text(invoiceData.client.email, 120, rightY);
+    rightY += 10;
+  }
+  if (invoiceData.client.phone) {
+    doc.text(invoiceData.client.phone, 120, rightY);
+    rightY += 10;
+  }
+  if (invoiceData.client.address) {
+    const addressLines = doc.splitTextToSize(invoiceData.client.address, 80);
+    doc.text(addressLines, 120, rightY);
   }
 
-  // Summary
-  const summaryY = (doc as any).lastAutoTable.finalY + 10;
-  const summaryX = 120;
+  // Items table
+  const tableStartY = 110;
+  
+  // Table header with gray background
+  doc.setFillColor(lightGray[0], lightGray[1], lightGray[2]);
+  doc.rect(20, tableStartY, 170, 10, 'F');
+  
+  // Table header border
+  doc.setDrawColor(0, 0, 0);
+  doc.setLineWidth(0.5);
+  doc.rect(20, tableStartY, 170, 10);
+  
+  // Table header text
   doc.setFontSize(10);
-  doc.setTextColor(gray[0], gray[1], gray[2]);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(black[0], black[1], black[2]);
+  doc.text('Description', 25, tableStartY + 7);
+  doc.text('Quantity', 105, tableStartY + 7);
+  doc.text('Price', 135, tableStartY + 7);
+  doc.text('Amount', 165, tableStartY + 7);
 
-  const summary = [
-    ['Subtotal', `₹${invoiceData.subtotal.toFixed(2)}`],
-    [`Tax (${invoiceData.taxRate}%)`, `₹${invoiceData.tax.toFixed(2)}`],
-    invoiceData.extraChargesTotal > 0 ? ['Other Charges', `₹${invoiceData.extraChargesTotal.toFixed(2)}`] : null,
-    ['Total', `₹${invoiceData.total.toFixed(2)}`]
-  ].filter(Boolean) as [string, string][];
-
-  summary.forEach(([label, value], idx) => {
-    doc.text(label, summaryX, summaryY + idx * 8);
-    doc.text(value, 190, summaryY + idx * 8, { align: 'right' });
+  // Table content
+  let currentY = tableStartY + 10;
+  doc.setFont('helvetica', 'normal');
+  
+  invoiceData.items.forEach((item) => {
+    const rowHeight = 10;
+    
+    // Draw row border
+    doc.rect(20, currentY, 170, rowHeight);
+    
+    // Item details
+    doc.text(item.name, 25, currentY + 7);
+    doc.text(item.quantity.toFixed(1), 105, currentY + 7);
+    doc.text(item.price.toFixed(1), 135, currentY + 7);
+    doc.text(item.total.toFixed(1), 165, currentY + 7);
+    
+    currentY += rowHeight;
   });
 
-  // Notes
-  if (invoiceData.notes) {
-    const notesY = summaryY + summary.length * 8 + 15;
-    doc.setFontSize(11);
-    doc.setTextColor(black[0], black[1], black[2]);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Notes', 20, notesY);
-
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10);
-    doc.setTextColor(gray[0], gray[1], gray[2]);
-    const noteLines = doc.splitTextToSize(invoiceData.notes, 170);
-    doc.setFillColor(248, 250, 252);
-    doc.rect(20, notesY + 4, 170, noteLines.length * 6 + 4, 'F');
-    doc.text(noteLines, 24, notesY + 10);
+  // Summary section
+  const summaryStartY = currentY + 20;
+  const summaryRightX = 170;
+  
+  doc.setFont('helvetica', 'normal');
+  
+  // Sub Total
+  doc.text('Sub Total', 120, summaryStartY);
+  doc.text(invoiceData.subtotal.toFixed(1), summaryRightX, summaryStartY, { align: 'right' });
+  
+  let summaryY = summaryStartY + 10;
+  
+  // Extra Charge (if any)
+  if (invoiceData.extraChargesTotal > 0) {
+    doc.text('Extra Charge', 120, summaryY);
+    doc.text(invoiceData.extraChargesTotal.toFixed(1), summaryRightX, summaryY, { align: 'right' });
+    summaryY += 10;
   }
+  
+  // Tax (only if tax > 0)
+  if (invoiceData.tax > 0) {
+    doc.text('Tax', 120, summaryY);
+    doc.text(invoiceData.tax.toFixed(1), summaryRightX, summaryY, { align: 'right' });
+    summaryY += 10;
+  }
+  
+  // Draw line above total
+  doc.setLineWidth(0.5);
+  doc.line(120, summaryY + 2, 190, summaryY + 2);
+  
+  // Total
+  doc.setFont('helvetica', 'bold');
+  doc.text('Total', 120, summaryY + 10);
+  doc.text(invoiceData.total.toFixed(1), summaryRightX, summaryY + 10, { align: 'right' });
 
-  // Footer
+  // Signature section
+  const signatureY = summaryY + 40;
+  doc.setFont('helvetica', 'normal');
+  doc.line(140, signatureY, 190, signatureY);
+  doc.text('Signature', 160, signatureY + 10);
+
+  // Footer message
   doc.setFontSize(9);
-  doc.setTextColor(gray[0], gray[1], gray[2]);
-  const footerText = [
-    invoiceData.businessProfile?.businessName,
-    invoiceData.businessProfile?.email,
-    invoiceData.businessProfile?.phone
-  ].filter(Boolean).join(' • ');
-  doc.text(footerText, 105, 290, { align: 'center' });
+  doc.setFont('helvetica', 'italic');
+  doc.text('*Provide all things is in good condition and fresh*', 105, 280, { align: 'center' });
 
   return doc.output('arraybuffer');
 };
