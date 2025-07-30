@@ -398,7 +398,7 @@ function NewBillingPageContent() {
                     </div>
 
                     <div className="w-20 text-right font-medium">
-                      ${((watchedItems[index]?.quantity || 0) * (watchedItems[index]?.sellingPrice || 0)).toFixed(2)}
+                      ₹{((watchedItems[index]?.quantity || 0) * (watchedItems[index]?.sellingPrice || 0)).toFixed(2)}
                     </div>
 
                     <Button

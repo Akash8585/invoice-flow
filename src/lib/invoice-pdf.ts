@@ -120,7 +120,7 @@ export const generateInvoicePDF = (invoiceData: InvoiceData) => {
   doc.setFont('helvetica', 'bold');
   doc.text(new Date(invoiceData.billDate).toLocaleDateString('en-GB'), 175, 115);
   doc.setFontSize(18);
-  doc.text(`$${invoiceData.total.toFixed(2)}`, 175, 135);
+  doc.text(`₹${invoiceData.total.toFixed(2)}`, 175, 135);
   
   // Client information
   doc.setTextColor(black[0], black[1], black[2]);
@@ -160,8 +160,8 @@ export const generateInvoicePDF = (invoiceData: InvoiceData) => {
   const tableData = invoiceData.items.map((item) => [
     item.name,
     item.quantity.toFixed(2),
-    `$${item.price.toFixed(2)}`,
-    `$${item.total.toFixed(2)}`
+    `₹${item.price.toFixed(2)}`,
+    `₹${item.total.toFixed(2)}`
   ]);
   
   autoTable(doc, {
@@ -211,12 +211,12 @@ export const generateInvoicePDF = (invoiceData: InvoiceData) => {
   
   // Subtotal
   doc.text('Subtotal:', summaryX, summaryY);
-  doc.text(`$${invoiceData.subtotal.toFixed(2)}`, 180, summaryY, { align: 'right' });
+  doc.text(`₹${invoiceData.subtotal.toFixed(2)}`, 180, summaryY, { align: 'right' });
   summaryY += 15;
   
   // Tax
   doc.text(`Tax (${invoiceData.taxRate}%):`, summaryX, summaryY);
-  doc.text(`$${invoiceData.tax.toFixed(2)}`, 180, summaryY, { align: 'right' });
+  doc.text(`₹${invoiceData.tax.toFixed(2)}`, 180, summaryY, { align: 'right' });
   summaryY += 20;
   
   // Total
@@ -224,7 +224,7 @@ export const generateInvoicePDF = (invoiceData: InvoiceData) => {
   doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
   doc.text('Total:', summaryX, summaryY);
-  doc.text(`$${invoiceData.total.toFixed(2)}`, 180, summaryY, { align: 'right' });
+  doc.text(`₹${invoiceData.total.toFixed(2)}`, 180, summaryY, { align: 'right' });
   
   // Footer with business info
   if (invoiceData.businessProfile) {

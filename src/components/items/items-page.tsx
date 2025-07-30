@@ -153,7 +153,7 @@ export default function ItemsPage() {
               </div>
 
               <div>
-                <Label htmlFor="costPrice">Cost Price ($)</Label>
+                <Label htmlFor="costPrice">Cost Price (₹)</Label>
                 <Input
                   id="costPrice"
                   type="number"
@@ -239,7 +239,7 @@ export default function ItemsPage() {
               </div>
 
               <div>
-                <Label htmlFor="sellingPrice">Selling Price ($)</Label>
+                <Label htmlFor="sellingPrice">Selling Price (₹)</Label>
                 <Input
                   id="sellingPrice"
                   type="number"
@@ -396,8 +396,8 @@ export default function ItemsPage() {
                       <TableCell>{item.category}</TableCell>
                       <TableCell className="text-muted-foreground">{item.unit || 'pcs'}</TableCell>
                       <TableCell>{parseFloat(item.quantity).toFixed(2)}</TableCell>
-                      <TableCell>${parseFloat(item.costPrice).toFixed(2)}</TableCell>
-                      <TableCell>${parseFloat(item.sellingPrice).toFixed(2)}</TableCell>
+                      <TableCell>₹{parseFloat(item.costPrice).toFixed(2)}</TableCell>
+                      <TableCell>₹{parseFloat(item.sellingPrice).toFixed(2)}</TableCell>
                       <TableCell className="text-muted-foreground">{item.description || '-'}</TableCell>
                       <TableCell>
                         <DropdownMenu>

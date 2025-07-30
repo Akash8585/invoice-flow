@@ -179,9 +179,9 @@ export default function DashboardPage() {
 
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('en-IN', {
       style: 'currency',
-      currency: 'USD',
+      currency: 'INR',
     }).format(amount);
   };
 
@@ -444,7 +444,7 @@ export default function DashboardPage() {
                 <div>
                   <p className="text-sm text-muted-foreground">Total Due Amount</p>
                   <p className="text-xl sm:text-2xl font-bold text-red-600">
-                    ${filteredBills
+                    ₹{filteredBills
                       .filter(bill => bill.status === 'due')
                       .reduce((sum, bill) => sum + parseFloat(bill.total), 0)
                       .toFixed(2)}

@@ -360,7 +360,7 @@ export default function BillingPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              ${getFilteredBills().reduce((sum, bill) => sum + parseFloat(bill.total || 0), 0).toFixed(2)}
+              ₹{getFilteredBills().reduce((sum, bill) => sum + parseFloat(bill.total || 0), 0).toFixed(2)}
                       </div>
           </CardContent>
         </Card>
@@ -577,8 +577,8 @@ export default function BillingPage() {
                               <TableRow key={item.id}>
                                 <TableCell>{item.inventory?.item?.name || 'Unknown Item'}</TableCell>
                                 <TableCell className="text-right">{parseFloat(item.quantity).toFixed(2)}</TableCell>
-                                <TableCell className="text-right">${parseFloat(item.sellingPrice).toFixed(2)}</TableCell>
-                                <TableCell className="text-right">${parseFloat(item.total).toFixed(2)}</TableCell>
+                                <TableCell className="text-right">₹{parseFloat(item.sellingPrice).toFixed(2)}</TableCell>
+                                <TableCell className="text-right">₹{parseFloat(item.total).toFixed(2)}</TableCell>
                               </TableRow>
                             ))
                           ) : (

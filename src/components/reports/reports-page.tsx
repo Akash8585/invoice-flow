@@ -100,9 +100,9 @@ export default function ReportsPage() {
   }, [dateRange, fetchReportsData]);
 
   const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('en-IN', {
       style: 'currency',
-      currency: 'USD',
+      currency: 'INR',
     }).format(value);
   };
 

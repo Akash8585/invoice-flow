@@ -460,7 +460,7 @@ export default function CreatePurchaseBillPage() {
                   placeholder="0"
                 />
                 <span className="text-sm">%</span>
-                <span className="ml-auto">${calculateTax().toFixed(2)}</span>
+                <span className="ml-auto">₹{calculateTax().toFixed(2)}</span>
               </div>
               {/* Other extra charges */}
               {extraChargeFields.map((field, index) => (
@@ -521,20 +521,20 @@ export default function CreatePurchaseBillPage() {
             <div className="space-y-2">
               <div className="flex justify-between">
                 <span>Subtotal:</span>
-                <span>${calculateSubtotal().toFixed(2)}</span>
+                <span>₹{calculateSubtotal().toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
                 <span>Tax:</span>
-                <span>${calculateTax().toFixed(2)}</span>
+                <span>₹{calculateTax().toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
                 <span>Extra Charges:</span>
-                <span>${calculateExtraChargesTotal().toFixed(2)}</span>
+                <span>₹{calculateExtraChargesTotal().toFixed(2)}</span>
               </div>
               <Separator />
               <div className="flex justify-between font-bold text-lg">
                 <span>Total:</span>
-                <span>${calculateTotal().toFixed(2)}</span>
+                <span>₹{calculateTotal().toFixed(2)}</span>
               </div>
             </div>
           </CardContent>

@@ -367,10 +367,10 @@ export default function InventoryPage() {
                       </TableCell>
                       <TableCell>{parseFloat(inv.quantity).toFixed(2)} {inv.item.unit || 'pcs'}</TableCell>
                       <TableCell>{parseFloat(inv.availableQuantity).toFixed(2)} {inv.item.unit || 'pcs'}</TableCell>
-                      <TableCell>${parseFloat(inv.costPrice).toFixed(2)}</TableCell>
-                      <TableCell>${parseFloat(inv.item.sellingPrice).toFixed(2)}</TableCell>
+                      <TableCell>₹{parseFloat(inv.costPrice).toFixed(2)}</TableCell>
+                      <TableCell>₹{parseFloat(inv.item.sellingPrice).toFixed(2)}</TableCell>
                       <TableCell>{formatDate(inv.purchaseDate)}</TableCell>
-                      <TableCell>${(parseFloat(inv.costPrice) * parseFloat(inv.quantity)).toFixed(2)}</TableCell>
+                      <TableCell>₹{(parseFloat(inv.costPrice) * parseFloat(inv.quantity)).toFixed(2)}</TableCell>
                       <TableCell>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
