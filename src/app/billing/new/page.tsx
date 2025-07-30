@@ -19,7 +19,6 @@ import { Separator } from '@/components/ui/separator';
 // Schema for billing form
 const billingFormSchema = z.object({
   clientId: z.string().min(1, 'Client is required'),
-  invoiceNumber: z.string().min(1, 'Invoice number is required'),
   billDate: z.string().min(1, 'Bill date is required'),
   dueDate: z.string().optional(),
   status: z.enum(['due', 'paid']),
@@ -38,15 +37,6 @@ const billingFormSchema = z.object({
 
 export type BillingFormData = z.infer<typeof billingFormSchema>;
 
-const generateInvoiceNumber = () => {
-  const date = new Date();
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-  return `INV-${year}${month}${day}-${random}`;
-};
-
 function NewBillingPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -62,7 +52,6 @@ function NewBillingPageContent() {
     resolver: zodResolver(billingFormSchema),
     defaultValues: {
       billDate: new Date().toISOString().split('T')[0],
-      invoiceNumber: generateInvoiceNumber(),
       status: 'due',
       items: [{ inventoryId: '', quantity: 1, sellingPrice: 0 }],
       extraCharges: [],
@@ -121,7 +110,6 @@ function NewBillingPageContent() {
             // Pre-fill the form with bill data
             setValue('clientId', bill.clientId);
             setValue('billDate', new Date(bill.billDate).toISOString().split('T')[0]);
-            setValue('invoiceNumber', bill.invoiceNumber);
             setValue('dueDate', bill.dueDate ? new Date(bill.dueDate).toISOString().split('T')[0] : '');
             setValue('status', bill.status);
             setValue('taxRate', parseFloat(bill.taxRate || 0));
@@ -277,17 +265,6 @@ function NewBillingPageContent() {
                 />
                 {errors.billDate && (
                   <p className="text-xs text-red-500">{errors.billDate.message}</p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">Invoice Number</Label>
-                <Input
-                  {...register('invoiceNumber')}
-                  placeholder="INV-YYYYMMDD-XXX"
-                />
-                {errors.invoiceNumber && (
-                  <p className="text-xs text-red-500">{errors.invoiceNumber.message}</p>
                 )}
               </div>
 

@@ -393,7 +393,6 @@ export default function BillingPage() {
                   <TableHead>Items</TableHead>
                   <TableHead>Quantity</TableHead>
                   <TableHead>Date</TableHead>
-                  <TableHead>Due Date</TableHead>
                   <TableHead>Total</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead></TableHead>
@@ -402,7 +401,7 @@ export default function BillingPage() {
               <TableBody>
                 {getFilteredBills().length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                       {bills.length === 0 ? 'No bills found. Create your first bill to get started.' : 'No bills found for the selected date range.'}
                     </TableCell>
                   </TableRow>
@@ -445,9 +444,6 @@ export default function BillingPage() {
                         )}
                       </TableCell>
                       <TableCell>{new Date(bill.billDate).toLocaleDateString()}</TableCell>
-                      <TableCell>
-                        {bill.dueDate ? new Date(bill.dueDate).toLocaleDateString() : '-'}
-                      </TableCell>
                       <TableCell>₹{parseFloat(bill.total || 0).toFixed(2)}</TableCell>
                       <TableCell>{getStatusBadge(bill.status)}</TableCell>
                       <TableCell>

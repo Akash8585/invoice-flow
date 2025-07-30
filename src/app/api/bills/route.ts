@@ -5,6 +5,39 @@ import { bills, billItems, billExtraCharges, inventory, clients, items } from '@
 import { eq, desc } from 'drizzle-orm';
 import { extendedBillSchema } from '@/lib/schemas';
 
+// Function to generate sequential invoice number
+const generateSequentialInvoiceNumber = async (userId: string) => {
+  const date = new Date();
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const datePrefix = `INV-${year}${month}${day}`;
+  
+  // Get the latest invoice number for today
+  const latestBill = await db
+    .select({ invoiceNumber: bills.invoiceNumber })
+    .from(bills)
+    .where(eq(bills.userId, userId))
+    .orderBy(desc(bills.createdAt))
+    .limit(1);
+  
+  let nextSequence = 1;
+  
+  if (latestBill.length > 0) {
+    const latestInvoiceNumber = latestBill[0].invoiceNumber;
+    // Extract the sequence number from the latest invoice
+    const sequenceMatch = latestInvoiceNumber.match(/-(\d{3})$/);
+    if (sequenceMatch && latestInvoiceNumber.startsWith(datePrefix)) {
+      // If it's from today, increment the sequence
+      nextSequence = parseInt(sequenceMatch[1]) + 1;
+    }
+    // If it's not from today, start from 001
+  }
+  
+  const sequenceStr = String(nextSequence).padStart(3, '0');
+  return `${datePrefix}-${sequenceStr}`;
+};
+
 export async function GET(request: NextRequest) {
   try {
     const session = await auth.api.getSession({
@@ -120,7 +153,10 @@ export async function POST(request: NextRequest) {
 
     // Validate the request body
     const validatedData = extendedBillSchema.parse(body);
-    const { clientId, invoiceNumber, billDate, items, taxRate, extraCharges, notes, status } = validatedData;
+    const { clientId, billDate, items, taxRate, extraCharges, notes, status } = validatedData;
+
+    // Generate sequential invoice number
+    const invoiceNumber = await generateSequentialInvoiceNumber(userId);
 
     // Calculate totals
     let subtotal = 0;

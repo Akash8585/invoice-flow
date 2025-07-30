@@ -139,7 +139,7 @@ export const billSchema = z.object({
 
 export const extendedBillSchema = z.object({
   clientId: z.string().min(1, 'Client is required'),
-  invoiceNumber: z.string().min(1, 'Invoice number is required'),
+  invoiceNumber: z.string().optional(), // Made optional since it will be auto-generated
   billDate: z.string().min(1, 'Bill date is required'),
   items: z.array(billingItemSchema).min(1, 'At least one item is required'),
   taxRate: z.preprocess(
