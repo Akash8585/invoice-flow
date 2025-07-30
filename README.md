@@ -114,8 +114,6 @@ EMAIL_SERVER_PASSWORD="your_app_password"
 # OAuth Providers (Optional)
 GOOGLE_CLIENT_ID="your_google_client_id"
 GOOGLE_CLIENT_SECRET="your_google_client_secret"
-GITHUB_CLIENT_ID="your_github_client_id"
-GITHUB_CLIENT_SECRET="your_github_client_secret"
 ```
 
 ### 3. Database Setup
