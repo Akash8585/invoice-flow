@@ -245,7 +245,7 @@ export default function InventoryPage() {
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${currentTotalValue.toFixed(2)}</div>
+            <div className="text-2xl font-bold">₹{currentTotalValue.toFixed(2)}</div>
           </CardContent>
         </Card>
 

@@ -479,7 +479,7 @@ export default function ExpensesPage() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${totalExpensesByDate.toFixed(2)}</div>
+            <div className="text-2xl font-bold">₹{totalExpensesByDate.toFixed(2)}</div>
             <p className="text-xs text-muted-foreground">
               {dateFilter === 'all' ? 'All time' : `Filtered by ${dateFilter}`}
             </p>
@@ -492,7 +492,7 @@ export default function ExpensesPage() {
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${totalExpenses.toFixed(2)}</div>
+            <div className="text-2xl font-bold">₹{totalExpenses.toFixed(2)}</div>
             <p className="text-xs text-muted-foreground">
               {filteredExpenses.length} expenses
             </p>
@@ -506,7 +506,7 @@ export default function ExpensesPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              ${filteredExpenses.length > 0 ? (totalExpenses / filteredExpenses.length).toFixed(2) : '0.00'}
+              ₹{filteredExpenses.length > 0 ? (totalExpenses / filteredExpenses.length).toFixed(2) : '0.00'}
             </div>
             <p className="text-xs text-muted-foreground">
               Per expense
@@ -589,7 +589,7 @@ export default function ExpensesPage() {
                         <span className="capitalize">{expense.category}</span>
                       </TableCell>
                       <TableCell>{expense.description}</TableCell>
-                      <TableCell>${parseFloat(expense.amount).toFixed(2)}</TableCell>
+                      <TableCell>₹{parseFloat(expense.amount).toFixed(2)}</TableCell>
                       <TableCell>{formatDate(expense.expenseDate)}</TableCell>
                       <TableCell>
                         {expense.purchaseBillId ? (

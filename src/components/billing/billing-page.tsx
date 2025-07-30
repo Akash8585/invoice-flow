@@ -448,7 +448,7 @@ export default function BillingPage() {
                       <TableCell>
                         {bill.dueDate ? new Date(bill.dueDate).toLocaleDateString() : '-'}
                       </TableCell>
-                      <TableCell>${parseFloat(bill.total || 0).toFixed(2)}</TableCell>
+                      <TableCell>₹{parseFloat(bill.total || 0).toFixed(2)}</TableCell>
                       <TableCell>{getStatusBadge(bill.status)}</TableCell>
                       <TableCell>
                         <div onClick={(e) => e.stopPropagation()}>
@@ -598,21 +598,21 @@ export default function BillingPage() {
                     <div className="w-64 space-y-2 border-t pt-3">
                       <div className="flex justify-between">
                        <span className="text-muted-foreground">Subtotal:</span>
-                       <span>${parseFloat(selectedBill.subtotal || 0).toFixed(2)}</span>
+                       <span>₹{parseFloat(selectedBill.subtotal || 0).toFixed(2)}</span>
                       </div>
                      {parseFloat(selectedBill.extraChargesTotal || 0) > 0 && (
                         <div className="flex justify-between">
                          <span className="text-muted-foreground">Extra Charges:</span>
-                         <span>${parseFloat(selectedBill.extraChargesTotal).toFixed(2)}</span>
+                         <span>₹{parseFloat(selectedBill.extraChargesTotal).toFixed(2)}</span>
                         </div>
                       )}
                       <div className="flex justify-between">
                        <span className="text-muted-foreground">Tax ({parseFloat(selectedBill.taxRate || 0)}%):</span>
-                       <span>${parseFloat(selectedBill.tax || 0).toFixed(2)}</span>
+                       <span>₹{parseFloat(selectedBill.tax || 0).toFixed(2)}</span>
                       </div>
                       <div className="flex justify-between font-bold pt-2 border-t">
                         <span>Total:</span>
-                       <span>${parseFloat(selectedBill.total || 0).toFixed(2)}</span>
+                       <span>₹{parseFloat(selectedBill.total || 0).toFixed(2)}</span>
                       </div>
                     </div>
                   </div>
