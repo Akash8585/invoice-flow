@@ -38,6 +38,7 @@ export const generateInvoicePDF = (invoiceData: InvoiceData) => {
   const doc = new jsPDF();
   const black: [number, number, number] = [0, 0, 0];
   const lightGray: [number, number, number] = [240, 240, 240];
+  const lightBorder: [number, number, number] = [200, 200, 200];
 
   // Header with invoice number and date
   doc.setFontSize(12);
@@ -49,57 +50,60 @@ export const generateInvoicePDF = (invoiceData: InvoiceData) => {
   // Billed from section (left side)
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
-  doc.text('Billed from :', 20, 40);
+  doc.text('Billed from :', 20, 35);
   
   doc.setFont('helvetica', 'bold');
-  doc.text(invoiceData.businessProfile?.businessName || 'YOUR BUSINESS NAME', 20, 50);
+  doc.text(invoiceData.businessProfile?.businessName || 'YOUR BUSINESS NAME', 20, 45);
   
   doc.setFont('helvetica', 'normal');
-  let leftY = 60;
+  let leftY = 52;
   if (invoiceData.businessProfile?.email) {
     doc.text(invoiceData.businessProfile.email, 20, leftY);
-    leftY += 10;
+    leftY += 7;
   }
   if (invoiceData.businessProfile?.phone) {
     doc.text(invoiceData.businessProfile.phone, 20, leftY);
-    leftY += 10;
+    leftY += 7;
   }
   if (invoiceData.businessProfile?.address) {
     const addressLines = doc.splitTextToSize(invoiceData.businessProfile.address, 80);
     doc.text(addressLines, 20, leftY);
   }
 
-  // Billed to section (right side)
-  doc.text('Billed to :', 120, 40);
+  // Billed to section (right side) - RIGHT ALIGNED
+  doc.text('Billed to :', 190, 35, { align: 'right' });
   
   doc.setFont('helvetica', 'bold');
-  doc.text(invoiceData.client.name, 120, 50);
+  doc.text(invoiceData.client.name, 190, 45, { align: 'right' });
   
   doc.setFont('helvetica', 'normal');
-  let rightY = 60;
+  let rightY = 52;
   if (invoiceData.client.email) {
-    doc.text(invoiceData.client.email, 120, rightY);
-    rightY += 10;
+    doc.text(invoiceData.client.email, 190, rightY, { align: 'right' });
+    rightY += 7;
   }
   if (invoiceData.client.phone) {
-    doc.text(invoiceData.client.phone, 120, rightY);
-    rightY += 10;
+    doc.text(invoiceData.client.phone, 190, rightY, { align: 'right' });
+    rightY += 7;
   }
   if (invoiceData.client.address) {
     const addressLines = doc.splitTextToSize(invoiceData.client.address, 80);
-    doc.text(addressLines, 120, rightY);
+    // For right alignment of multi-line address, we need to align each line
+    addressLines.forEach((line: string, index: number) => {
+      doc.text(line, 190, rightY + (index * 7), { align: 'right' });
+    });
   }
 
-  // Items table
-  const tableStartY = 110;
+  // Items table - reduced gap above table
+  const tableStartY = 85;
   
   // Table header with gray background
   doc.setFillColor(lightGray[0], lightGray[1], lightGray[2]);
   doc.rect(20, tableStartY, 170, 10, 'F');
   
-  // Table header border
-  doc.setDrawColor(0, 0, 0);
-  doc.setLineWidth(0.5);
+  // Table header border - lighter color
+  doc.setDrawColor(lightBorder[0], lightBorder[1], lightBorder[2]);
+  doc.setLineWidth(0.3);
   doc.rect(20, tableStartY, 170, 10);
   
   // Table header text
@@ -118,7 +122,9 @@ export const generateInvoicePDF = (invoiceData: InvoiceData) => {
   invoiceData.items.forEach((item) => {
     const rowHeight = 10;
     
-    // Draw row border
+    // Draw row border - lighter color
+    doc.setDrawColor(lightBorder[0], lightBorder[1], lightBorder[2]);
+    doc.setLineWidth(0.3);
     doc.rect(20, currentY, 170, rowHeight);
     
     // Item details
@@ -156,8 +162,9 @@ export const generateInvoicePDF = (invoiceData: InvoiceData) => {
     summaryY += 10;
   }
   
-  // Draw line above total
-  doc.setLineWidth(0.5);
+  // Draw line above total - lighter color
+  doc.setDrawColor(lightBorder[0], lightBorder[1], lightBorder[2]);
+  doc.setLineWidth(0.3);
   doc.line(120, summaryY + 2, 190, summaryY + 2);
   
   // Total
@@ -168,6 +175,8 @@ export const generateInvoicePDF = (invoiceData: InvoiceData) => {
   // Signature section
   const signatureY = summaryY + 40;
   doc.setFont('helvetica', 'normal');
+  doc.setDrawColor(black[0], black[1], black[2]);
+  doc.setLineWidth(0.5);
   doc.line(140, signatureY, 190, signatureY);
   doc.text('Signature', 160, signatureY + 10);
 
