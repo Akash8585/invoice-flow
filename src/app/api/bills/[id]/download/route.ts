@@ -8,8 +8,11 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  let billId: string = 'unknown';
   try {
     const { id } = await params;
+    billId = id;
+    
     // Fetch the bill with all related data using manual joins
     const billHeader = await db
       .select({
@@ -116,6 +119,17 @@ export async function GET(
       } : undefined
     };
 
+    // Validate invoice data
+    if (!invoiceData.invoiceNumber || !invoiceData.client.name || invoiceData.items.length === 0) {
+      console.error('Invalid invoice data:', invoiceData);
+      return NextResponse.json(
+        { error: 'Invalid invoice data' },
+        { status: 400 }
+      );
+    }
+
+    console.log('Generating PDF for invoice:', invoiceData.invoiceNumber);
+
     // Generate PDF
     const pdfArrayBuffer = generateInvoicePDF(invoiceData);
     const pdfBuffer = Buffer.from(pdfArrayBuffer);
@@ -131,6 +145,11 @@ export async function GET(
 
   } catch (error) {
     console.error('Download invoice API error:', error);
+    console.error('Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      billId: billId || 'unknown'
+    });
     return NextResponse.json(
       { error: 'Failed to generate invoice PDF' },
       { status: 500 }

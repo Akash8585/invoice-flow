@@ -45,7 +45,12 @@ export const generateInvoicePDF = (invoiceData: InvoiceData) => {
 
   // Logo (optional)
   if (invoiceData.businessProfile?.logo) {
-    doc.addImage(invoiceData.businessProfile.logo, 'PNG', 160, cursorY, 30, 30);
+    try {
+      doc.addImage(invoiceData.businessProfile.logo, 'PNG', 160, cursorY, 30, 30);
+    } catch (error) {
+      console.warn('Failed to add logo to PDF:', error);
+      // Continue without logo if there's an error
+    }
   }
 
   // Business Info
@@ -127,27 +132,40 @@ export const generateInvoicePDF = (invoiceData: InvoiceData) => {
     `₹${item.total.toFixed(2)}`
   ]);
 
-  autoTable(doc, {
-    startY: tableY,
-    head: [['Item', 'Qty', 'Unit Price', 'Total']],
-    body: tableData,
-    margin: { left: 20, right: 20 },
-    theme: 'grid',
-    headStyles: {
-      fillColor: lightGray,
-      textColor: black,
-      fontStyle: 'bold',
-    },
-    styles: {
-      font: 'helvetica',
-      fontSize: 10,
-    },
-    columnStyles: {
-      1: { halign: 'center' },
-      2: { halign: 'right' },
-      3: { halign: 'right', fontStyle: 'bold' }
-    }
-  });
+  try {
+    autoTable(doc, {
+      startY: tableY,
+      head: [['Item', 'Qty', 'Unit Price', 'Total']],
+      body: tableData,
+      margin: { left: 20, right: 20 },
+      theme: 'grid',
+      headStyles: {
+        fillColor: lightGray,
+        textColor: black,
+        fontStyle: 'bold',
+      },
+      styles: {
+        font: 'helvetica',
+        fontSize: 10,
+      },
+      columnStyles: {
+        1: { halign: 'center' },
+        2: { halign: 'right' },
+        3: { halign: 'right', fontStyle: 'bold' }
+      }
+    });
+  } catch (error) {
+    console.error('Failed to generate table:', error);
+    // Fallback: simple text-based table
+    doc.setFontSize(10);
+    doc.setTextColor(black[0], black[1], black[2]);
+    doc.text('Items:', 20, tableY);
+    let itemY = tableY + 10;
+    invoiceData.items.forEach((item, index) => {
+      doc.text(`${index + 1}. ${item.name} - Qty: ${item.quantity} - Price: ₹${item.price.toFixed(2)} - Total: ₹${item.total.toFixed(2)}`, 20, itemY);
+      itemY += 8;
+    });
+  }
 
   // Summary
   const summaryY = (doc as any).lastAutoTable.finalY + 10;
